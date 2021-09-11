@@ -78,8 +78,7 @@ function lower(array, item1, item2) {
 			continue;
 
 		lesser = array[item1].charCodeAt(check_nums) < array[item2].charCodeAt(check_nums) ? true : false;
-		if (typeof lesser == "boolean")
-			break;
+		break;
 	}
 
 	/*

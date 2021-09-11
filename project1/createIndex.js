@@ -1,5 +1,4 @@
 const fs = require('fs');
-const readline = require('readline');
 const stemmer = require('porter-stemmer').stemmer;
 
 function isPage(string) {
@@ -38,16 +37,14 @@ function replace_tags(string, end_phrase) {
 		portions of the string at a time.
 */
 function pageIndexer(page, stopwords) {
-	stopwords = stopwords.split("\n");
-
 	page = page.split("</page>")[0].split("</id>");
 
 	/* now we have the wanted:
-		"<id>0</id>
-		<title>Hello</title>
+		["<id>0",
+		"<title>Hello</title>
 		<text>
 			Nice to meet you
-		</text>"
+		</text>"]
 
 		Then we can remove the other tags and concatenate title and text:
 	*/
@@ -101,9 +98,8 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 		highWaterMark: 16383
 	}, 'utf8');
 
-	fs.truncate(outputer, 0, function() {
-		return;
-	});
+	fs.truncateSync(outputer, 0);
+
 	let writer = fs.createWriteStream(outputer);
 
 	let pages = [],
@@ -124,6 +120,6 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 	});
 }
 
-let stop_words = fs.readFileSync(`./myStopWords.dat`, 'utf8');
+let stop_words = fs.readFileSync(`./myStopWords.dat`, 'utf8').split("\n");
 
 createIndex(`./myCollection.dat`, stop_words, `./myIndex.dat`);
