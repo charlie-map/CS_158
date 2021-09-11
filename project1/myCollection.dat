@@ -12,4 +12,22 @@ characters !@#$%^&*,
 numbers like 2011, etc.
 </text>
 </page>
+<page>
+<id>1</id>
+<title>A Beautiful Other Page</title>
+<text>
+Random stuff Typed random,
+All sorts!@##$ of added fun??	here and
+there.
+Good luck!
+</text>
+</page>
+<page>
+<id>2</id>
+<title>A whole Different page</title>
+<text>
+Look at all this data in here
+</text>
+</page>
+<page>
 </collection>
