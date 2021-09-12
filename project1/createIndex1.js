@@ -95,8 +95,9 @@ function findPages(string, pages, stopwords, writer) {
 				page_id = buffer == "id" && !page_id ? string.substring(buffer_place, open_tag) : page_id;
 				page_title = buffer == "title" ? string.substring(buffer_place, open_tag) : page_title;
 
-				//console.log(page_id, page_title);
-				if (page_id && page_title)
+				if (page_id && page_title &&
+					((string[i - 5] == "t" && string[i - 4] == "i" && string[i - 3] == "t" && string[i - 2] == "l" && string[i - 1] == "e") ||
+					string[i - 2] == "i" && string[i - 1] == "d"))
 					writer.write(`${page_id}|${page_title}\n`);
 				
 				word = "";
@@ -140,10 +141,10 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 	});
 
 	source.on('end', () => {
-		console.log(pages);
+		//console.log(pages);
 	});
 }
 
 let stop_words = fs.readFileSync(`./myStopWords.dat`, 'utf8').split("\n");
-
+// /media/hotboy/DUMP/wikidatawiki-20210901-pages-articles-multistream7.xml-p6052572p7552571
 createIndex(`./myCollection.dat`, stop_words, `./myIndex.dat`);
