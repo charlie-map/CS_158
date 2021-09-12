@@ -2,69 +2,124 @@ const fs = require('fs');
 const stemmer = require('porter-stemmer').stemmer;
 const skiplist = require('./skipList');
 
-function findPages(string, pages, stopwords, broken, buffer) {
+function findPages(string, pages, stopwords, writer) {
+	let open_tag = null,
+		buffer = null,
+		buffer_place,
+		page_id, page_title;
+
 	stopwords.forEach(stop => {
-		string = stop.length ? string.replace(new RegExp(`\\b${stop} \\b`, "g"), "") : page.text;
-		string = stop.length ? string.replace(new RegExp(`\\b ${stop}\\b`, "g"), "") : page.text;
+		string = stop.length ? string.replace(new RegExp(`(\\s+)${stop}(\\s+)`, "g"), " ") : string;
 	});
 	string = string.toLowerCase();
 
 	let word = "";
-	for (let runStr = 0; runStr < string.length; runStr++) {
+	for (let i = 0; i < string.length; i++) {
 
-		if (broken == null) {
+		if (open_tag == null) {
 			if (buffer == null) {
+				if (string[i] == "<" && string[i + 1] == "/") {
+					// this is a special case for encapsulating tags,
+					// if we've reached the end, we don't really care, we
+					// just need to move past it
+					i += string.indexOf(">", i + 1) - i;
+					continue;
+				}
+
 				// we know we're just looking for a "<" tag
 				if (string[i] == "<") {
-					broken = i;
-					i += 2; // trying to skip as much string as possible
+					open_tag = i;
+					i += 2;
 				}
 			} else {
 				// we know we're looking for "</"
-				if (string[i] + string[i + 1] == "</") {
-					broken = buffer;
-					i += 2; // skipping just a wee bit :D
+				if (string[i] == "<" && string[i + 1] == "/") {
+					open_tag = i;
+					i += 2;
+					continue;
 				}
 
 				// if this isn't true, we should be looking for words
 				// (only if in the <text> element)
-				if (string[i] == " " && buffer == "text") {
+				if ((string[i] == " " || string[i] == "\n" || string[i] == "\t") && buffer == "text" && word.length) {
 					// add the word (after stemming) into the skip list
-					// skiplist.insert(stemmer(word), pages[pages.length - 1].id, i);
+					// see if we already have a skip list for this word:
+					let stem_word = stemmer(word);
+					if (!pages[stem_word])
+						pages[stem_word] = {};
+
+					if (!pages[stem_word].skiplist)
+						pages[stem_word].skiplist = new skiplist;
+
+					pages[stem_word].skiplist.insert(page_id, [i]);
 					word = "";
-				} else
-					word += string[i];
+				} else {
+					word += string[i].charCodeAt(0) >= 97 && string[i].charCodeAt(0) <= 122 ?
+						string[i] : "";
+				}
 			}
 		} else {
 			if (string[i] == ">" && buffer == null) {
-				// we've found the end of a tag
-				let string_sub = string.substring(broken + 1, i);
+				if (string[open_tag + 1] == "/")
+					continue; // disregard the closure (an extrenous tag that we ignored earlier)
 
+				// we've found the end of a tag
+				let string_sub = string.substring(open_tag + 1, i);
 				/* there's a chance there's extra stuff inside of string_sub
 					ex. <text bytes="10593" xml:space="preserve">
 					to just look at the beginning (no excess information)
 					we can use substr since substr has O(k) complexity
 					where k is string_sub.substr(0, k) length of pulled string
 					versus split() which is n where n = string_sub.length */
+
+				let index_ofSpace = string_sub.indexOf(" ");
+				buffer = string_sub.substring(0, index_ofSpace == -1 ? string_sub.length : index_ofSpace);
+				// make sure the buffer is a type of tag we want
+				// ^ we only care about id, title, and text
+				if (buffer == "text" || buffer == "title" || buffer == "id") {
+					buffer_place = i + 1;
+				} else if (buffer == "page") {
+					page_id = null;
+					page_title = null;
+					buffer = null;
+				} else {
+					buffer = null;
+				}
+				open_tag = null;
+				word = "";
+			} else if (string[i] == ">") {
+				// we've found the end of our close tag (aka </id">")
+
+				// buffer_place is the beginning of our tag data (the initial <id>"x" after our tag)
+				// and open_tag is the end of our tag data (the end "<"/id>)
+				page_id = buffer == "id" && !page_id ? string.substring(buffer_place, open_tag) : page_id;
+				page_title = buffer == "title" ? string.substring(buffer_place, open_tag) : page_title;
+
+				//console.log(page_id, page_title);
+				if (page_id && page_title)
+					writer.write(`${page_id}|${page_title}\n`);
 				
-				buffer = string_sub.substring(0, string_sub.indexOf(" "));
-				broken = null;
-				word = ""; 
+				word = "";
+				open_tag = null;
+				buffer = null;
 			}
 		}
 	}
+
+	return [open_tag, buffer, buffer_place, word];
 }
 
 function createIndex(coll_endpoint, stopwords, outputer) {
 
-	let pages = {}, broken = null, buffer = null;
+	let pages = {},
+		open_tag, buffer, buffer_place, curr_word, page_id;
 	let source = fs.createReadStream(coll_endpoint, {
-		highWaterMark: 16383
-	}, 'utf8');
+		highWaterMark: 8191
+	});
 
 	fs.truncateSync(outputer, 0);
 
-	let writer = fs.createWriteStream(outputer);
+	let writerTitleIndex = fs.createWriteStream(outputer);
 
 	/*
 		example page:
@@ -76,8 +131,16 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 					else: ^^ same
 			}
 	*/
-	source.on('data', function(chunk) {
-		findPages(chunk, pages, stopwords, broken, buffer);
+	source.on('readable', () => {
+		let chunk;
+
+		while (null !== (chunk = source.read())) {
+			let data = findPages(chunk.toString(), pages, stopwords, writerTitleIndex);
+		}
+	});
+
+	source.on('end', () => {
+		console.log(pages);
 	});
 }
 

@@ -22,19 +22,23 @@ function skipList() {
 
 		// using the top, we can see when it starts working:
 		while (top > -1) {
-			if (doc_id == this.values[top][index].value)
-				this.values[top][index].documents = [...this.values[top][index].documents, ...doc_positions]
+			if (doc_id == this.values[top][index].value) {
+				this.values[top][index].documents = [...this.values[top][index].documents, ...doc_positions];
+				top--;
+				continue;
+			}
 
 			// if we're on a level that interesects our val_height,
 			// build in the new value
 
 			if (doc_id < this.values[top][index].value) {
-				if (top <= val_height)
+				if (top <= val_height) {
 					// it will splice in between index and index + 1
 					this.values[top].splice(index, 0, {
 						value: doc_id,
 						documents: doc_positions
 					});
+				}
 				top--;
 			} else
 				index++;
@@ -62,7 +66,7 @@ function skipList() {
 // skip_list1.insert(2, [420, 3, 1]);
 
 // let skip_list2 = new skipList();
-// skip_list2.insert(1, [34, 10, 40]);
-// skip_list2.insert(8, [6, 21, 3]);
+// skip_list2.insert(1, [34]);
+// skip_list2.insert(1, [6]);
 
 module.exports = skipList;
