@@ -22,6 +22,7 @@ function skipList() {
 
 		// using the top, we can see when it starts working:
 		while (top > -1) {
+			if (!this.values[top][index]) console.log(this.values[top], index, doc_id);
 			if (doc_id == this.values[top][index].value) {
 				this.values[top][index].documents = [...this.values[top][index].documents, ...doc_positions];
 				top--;

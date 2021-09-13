@@ -77,7 +77,7 @@ function deserializeObject(input_file) {
 		}
 	}
 
-	console.log(newOBJ["dog"].skiplist.values);
+	return newOBJ;
 }
 
 // serializeObject("./myIndex.dat", {

@@ -5,18 +5,16 @@ const {
 	serializeObject
 } = require('./utils');
 
-function findPages(string, pages, stopwords, writer) {
-	let open_tag = null,
-		buffer = null,
-		buffer_place,
-		page_id, page_title;
+let pages = {}, open_tag = null, buffer = null, buffer_place, word, page_id, page_title;
+
+function findPages(string, stopwords, writer) {
 
 	stopwords.forEach(stop => {
 		string = stop.length ? string.replace(new RegExp(`(\\s+)${stop}(\\s+)`, "g"), " ") : string;
 	});
 	string = string.toLowerCase();
 
-	let word = "";
+	word = "";
 	for (let i = 0; i < string.length; i++) {
 
 		if (open_tag == null) {
@@ -110,13 +108,12 @@ function findPages(string, pages, stopwords, writer) {
 		}
 	}
 
-	return [open_tag, buffer, buffer_place, word];
+	return;
 }
 
 function createIndex(coll_endpoint, stopwords, outputer) {
 
-	let pages = {},
-		open_tag, buffer, buffer_place, curr_word, page_id;
+	console.time();
 	let source = fs.createReadStream(coll_endpoint, {
 		highWaterMark: 131072
 	});
@@ -139,19 +136,18 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 		let chunk;
 
 		while (null !== (chunk = source.read())) {
-			let data = findPages(chunk.toString(), pages, stopwords, writerTitleIndex);
+			findPages(chunk.toString(), stopwords, writerTitleIndex);
 		}
 	});
 
 	source.on('end', () => {
 		// serialize pages into the inverted index:
-		serializeObject(`./myIndex.dat`, pages);
+		serializeObject(`/media/hotboy/DUMP/myIndex.dat`, pages);
+		console.time();
 	});
 }
 
 let stop_words = fs.readFileSync(`./myStopWords.dat`, 'utf8').split("\n");
 // /media/hotboy/DUMP/wikidatawiki-20210901-pages-articles-multistream7.xml-p6052572p7552571
-console.time();
-createIndex('./myCollection.dat', stop_words, './myTitles.dat');
-//createIndex(`/media/hotboy/DUMP/wikidatawiki-20210901-pages-articles-multistream7.xml-p6052572p7552571`, stop_words, `./myTitles.dat`);
-console.timeEnd();
+//createIndex('./myCollection.dat', stop_words, './myTitles.dat');
+createIndex(`/media/hotboy/DUMP/enwiki-20210901-pages-articles-multistream1.xml-p1p41242`, stop_words, `./myTitles.dat`);
