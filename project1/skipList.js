@@ -69,4 +69,6 @@ function skipList() {
 // skip_list2.insert(1, [34]);
 // skip_list2.insert(1, [6]);
 
+// console.log(skip_list2.values);
+
 module.exports = skipList;

@@ -10,6 +10,7 @@ and [[internal links]],
 punctuation, strange
 characters !@#$%^&*,
 numbers like 2011, etc.
+What if I added more pages?
 </text>
 </page>
 <page>
@@ -26,7 +27,7 @@ Good luck!
 <id>2</id>
 <title>A whole Different page</title>
 <text>
-Look at all this data in here
+Look at all this data in here and don't look at other pages. Superdelicious
 </text>
 </page>
 <page>
