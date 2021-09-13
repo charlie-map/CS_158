@@ -66,8 +66,9 @@ function skipList() {
 // skip_list1.insert(2, [420, 3, 1]);
 
 // let skip_list2 = new skipList();
-// skip_list2.insert(1, [34]);
-// skip_list2.insert(1, [6]);
+// skip_list2.insert(4, [34, 345]);
+// skip_list2.insert(10, [34]);
+// skip_list2.insert(40, [6]);
 
 // console.log(skip_list2.values);
 
