@@ -64,14 +64,14 @@ function deserializeObject(input_file) {
 		// then start adding documents:
 		if (!doc_id) {
 			end_index = file.indexOf(":", find_str);
-			doc_id = file.substring(find_str, end_index);
+			doc_id = parseInt(file.substring(find_str, end_index), 10);
 			newOBJ[word].skiplist.insert(doc_id, []);
 			find_str += end_index - find_str + 1;
 		}
 
 		if (!position) {
 			end_index = file.indexOf(",", find_str);
-			position = file.substring(find_str, end_index);
+			position = parseInt(file.substring(find_str, end_index), 10);
 			newOBJ[word].skiplist.insert(doc_id, [position]);
 			find_str += end_index - find_str;
 		}
@@ -116,5 +116,6 @@ function deserializeObject(input_file) {
 deserializeObject(`./myIndex.dat`);
 
 module.exports = {
-	serializeObject
+	serializeObject,
+	deserializeObject
 }

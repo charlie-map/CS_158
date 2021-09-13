@@ -1,6 +1,9 @@
 const fs = require('fs');
 const stemmer = require('porter-stemmer').stemmer;
 const skiplist = require('./skipList');
+const {
+	serializeObject
+} = require('./utils');
 
 function findPages(string, pages, stopwords, writer) {
 	let open_tag = null,
@@ -92,14 +95,14 @@ function findPages(string, pages, stopwords, writer) {
 
 				// buffer_place is the beginning of our tag data (the initial <id>"x" after our tag)
 				// and open_tag is the end of our tag data (the end "<"/id>)
-				page_id = buffer == "id" && !page_id ? string.substring(buffer_place, open_tag) : page_id;
+				page_id = buffer == "id" && !page_id ? parseInt(string.substring(buffer_place, open_tag), 10) : page_id;
 				page_title = buffer == "title" ? string.substring(buffer_place, open_tag) : page_title;
 
 				if (page_id && page_title &&
 					((string[i - 5] == "t" && string[i - 4] == "i" && string[i - 3] == "t" && string[i - 2] == "l" && string[i - 1] == "e") ||
-					string[i - 2] == "i" && string[i - 1] == "d"))
+						string[i - 2] == "i" && string[i - 1] == "d"))
 					writer.write(`${page_id}|${page_title}\n`);
-				
+
 				word = "";
 				open_tag = null;
 				buffer = null;
@@ -115,7 +118,7 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 	let pages = {},
 		open_tag, buffer, buffer_place, curr_word, page_id;
 	let source = fs.createReadStream(coll_endpoint, {
-		highWaterMark: 8191
+		highWaterMark: 131072
 	});
 
 	fs.truncateSync(outputer, 0);
@@ -141,10 +144,14 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 	});
 
 	source.on('end', () => {
-		//console.log(pages);
+		// serialize pages into the inverted index:
+		serializeObject(`./myIndex.dat`, pages);
 	});
 }
 
 let stop_words = fs.readFileSync(`./myStopWords.dat`, 'utf8').split("\n");
 // /media/hotboy/DUMP/wikidatawiki-20210901-pages-articles-multistream7.xml-p6052572p7552571
-createIndex(`./myCollection.dat`, stop_words, `./myIndex.dat`);
+console.time();
+createIndex('./myCollection.dat', stop_words, './myTitles.dat');
+//createIndex(`/media/hotboy/DUMP/wikidatawiki-20210901-pages-articles-multistream7.xml-p6052572p7552571`, stop_words, `./myTitles.dat`);
+console.timeEnd();
