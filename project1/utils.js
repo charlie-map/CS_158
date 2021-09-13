@@ -1,24 +1,29 @@
 const fs = require('fs');
 
-let objk = {
-	serializeObject: function(textfile, object) {
-		let writer = fs.createWriteStream(textfile);
+function serializeObject(textfile, object) {
+	let writer = fs.createWriteStream(textfile);
 
-		let objectKeys = Object.keys(object),
-			string, sub_object;
+	let objectKeys = Object.keys(object),
+		string, sub_object, obKey;
 
-		for (let obKey = 0; obKey < objectKeys.length; obKey++) {
-			string = `${objectKeys[obKey]}|`;
+	do {
+		string = `${objectKeys[obKey]}|`;
 
-			sub_object = object[objectKeys[obKey]].skiplist.values[0]
-			for (let grabDocs = 0; grabDocs < sub_object.length - 1; grabDocs++) {
-				string += sub_object[grabDocs].value + ":" + sub_object[grabDocs].documents + ";";
-			}
-
-			string += "\n";
-
-			writer.write(string);
+		sub_object = object[objectKeys[obKey]].skiplist.values[0]
+		for (let grabDocs = 0; grabDocs < sub_object.length - 1; grabDocs++) {
+			string += sub_object[grabDocs].value + ":" + sub_object[grabDocs].documents + ";";
 		}
+
+		string += "\n";
+		writer.write(string);
+
+		obKey++;
+	} while (obKey < objectKeys.length);
+
+	if (obKey < objectKeys.length) {
+		// Had to stop early!
+
+		writer.once('drain', serializeObject);
 	}
 }
 
