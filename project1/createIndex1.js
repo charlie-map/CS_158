@@ -5,7 +5,12 @@ const {
 	serializeObject
 } = require('./utils');
 
-let pages = {}, open_tag = null, buffer = null, buffer_place, word, page_id, page_title;
+let pages = {},
+	open_tag = null,
+	buffer = null,
+	buffer_place, word, page_id = "",
+	page_idDone = false,
+	page_title = "";
 
 function findPages(string, stopwords, writer) {
 
@@ -23,7 +28,12 @@ function findPages(string, stopwords, writer) {
 					// this is a special case for encapsulating tags,
 					// if we've reached the end, we don't really care, we
 					// just need to move past it
-					i += string.indexOf(">", i + 1) - i;
+					// make sure that string.indexOf() is not negative
+					// if the string.indexOf() is negative, we need to actually
+					// go to the end of the string instead, since in this case we don't
+					// care what happens to the data
+					let string_end = string.indexOf(">", i + 1);
+					i += string_end == -1 ? string.length - i : string_end - i; // BINGO
 					continue;
 				}
 
@@ -39,6 +49,11 @@ function findPages(string, stopwords, writer) {
 					i += 2;
 					continue;
 				}
+
+				// we add to the page info if necessary
+				page_id += !page_idDone && buffer == "id" ? string[i] : "";
+				page_title += buffer == "title" ? string[i] : "";
+	
 
 				// if this isn't true, we should be looking for words
 				// (only if in the <text> element)
@@ -61,9 +76,6 @@ function findPages(string, stopwords, writer) {
 			}
 		} else {
 			if (string[i] == ">" && buffer == null) {
-				if (string[open_tag + 1] == "/")
-					continue; // disregard the closure (an extrenous tag that we ignored earlier)
-
 				// we've found the end of a tag
 				let string_sub = string.substring(open_tag + 1, i);
 				/* there's a chance there's extra stuff inside of string_sub
@@ -77,29 +89,32 @@ function findPages(string, stopwords, writer) {
 				buffer = string_sub.substring(0, index_ofSpace == -1 ? string_sub.length : index_ofSpace);
 				// make sure the buffer is a type of tag we want
 				// ^ we only care about id, title, and text
-				if (buffer == "text" || buffer == "title" || buffer == "id") {
-					buffer_place = i + 1;
-				} else if (buffer == "page") {
-					page_id = null;
-					page_title = null;
+				if (buffer == "page") {
+					page_id = "";
+					page_idDone = false;
+					page_title = "";
 					buffer = null;
+				} else if (buffer == "id" || buffer == "title" || buffer == "text") {
+					// change nothing
 				} else {
 					buffer = null;
 				}
 				open_tag = null;
 				word = "";
-			} else if (string[i] == ">") {
+			} else if (string[i] == ">" && buffer) {
 				// we've found the end of our close tag (aka </id">")
 
 				// buffer_place is the beginning of our tag data (the initial <id>"x" after our tag)
 				// and open_tag is the end of our tag data (the end "<"/id>)
-				page_id = buffer == "id" && !page_id ? parseInt(string.substring(buffer_place, open_tag), 10) : page_id;
-				page_title = buffer == "title" ? string.substring(buffer_place, open_tag) : page_title;
 
-				if (page_id && page_title &&
+				if (!page_idDone && page_id && page_title &&
 					((string[i - 5] == "t" && string[i - 4] == "i" && string[i - 3] == "t" && string[i - 2] == "l" && string[i - 1] == "e") ||
-						string[i - 2] == "i" && string[i - 1] == "d"))
+						string[i - 2] == "i" && string[i - 1] == "d")) {
+					page_id = parseInt(page_id, 10);
 					writer.write(`${page_id}|${page_title}\n`);
+					page_id = page_id.toString();
+					page_idDone = true;
+				}
 
 				word = "";
 				open_tag = null;
@@ -115,7 +130,7 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 
 	console.time();
 	let source = fs.createReadStream(coll_endpoint, {
-		highWaterMark: 131072
+		highWaterMark: 131071
 	});
 
 	fs.truncateSync(outputer, 0);
@@ -143,7 +158,7 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 	source.on('end', () => {
 		// serialize pages into the inverted index:
 		serializeObject(`/media/hotboy/DUMP/myIndex.dat`, pages);
-		console.time();
+		console.timeEnd();
 	});
 }
 

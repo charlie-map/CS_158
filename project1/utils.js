@@ -9,7 +9,7 @@ function serializeObject(textfile, object) {
 	let objectKeys = Object.keys(object),
 		string, sub_object, obKey = 0;
 
-	do {
+	while (obKey < objectKeys.length) {
 		string = `${objectKeys[obKey]}|`;
 
 		sub_object = object[objectKeys[obKey]].skiplist.values[0]
@@ -21,7 +21,7 @@ function serializeObject(textfile, object) {
 		writer.write(string);
 
 		obKey++;
-	} while (obKey < objectKeys.length);
+	};
 
 	if (obKey < objectKeys.length) {
 		// Had to stop early!
