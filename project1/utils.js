@@ -1,7 +1,37 @@
 const fs = require('fs');
 const skiplist = require('./skipList');
 
+function roughSizeOfObject(object) {
+
+	var objectList = [];
+	var stack = [object];
+	var bytes = 0;
+
+	while (stack.length) {
+		var value = stack.pop();
+
+		if (typeof value === 'boolean') {
+			bytes += 4;
+		} else if (typeof value === 'string') {
+			bytes += value.length * 2;
+		} else if (typeof value === 'number') {
+			bytes += 8;
+		} else if (
+			typeof value === 'object' &&
+			objectList.indexOf(value) === -1
+		) {
+			objectList.push(value);
+
+			for (var i in value) {
+				stack.push(value[i]);
+			}
+		}
+	}
+	return bytes;
+}
+
 function serializeObject(textfile, object) {
+	console.log(roughSizeOfObject(object));
 	let writer = fs.createWriteStream(textfile, {
 		highWaterMark: 65535
 	});
@@ -30,30 +60,29 @@ function serializeObject(textfile, object) {
 	}
 }
 
-function deserializeObject(input_file) {
-	let file = fs.readFileSync(input_file).toString();;
+function deserializeObject(input_file, half_doneOBJ) {
 
 	// we are assuming the incoming file has the form:
 	/*
 		cat|2:5,10,88;
 		dog|4:20,4;10:45,69;40:10,45,32465;
 	*/
-	let newOBJ = {},
+	let newOBJ = half_doneOBJ ? half_doneOBJ : {},
 		word, doc_id, position;
 
-	for (let find_str = 0; find_str < file.length; find_str++) {
-		word = file[find_str] == "\n" ? null : word;
-		doc_id = file[find_str] == "\n" || file[find_str] == ";" ? null : doc_id;
-		position = file[find_str] == "\n" || file[find_str] == ";" ? null : position;
+	for (let find_str = 0; find_str < input_file.length; find_str++) {
+		word = input_file[find_str] == "\n" ? null : word;
+		doc_id = input_file[find_str] == "\n" || input_file[find_str] == ";" ? null : doc_id;
+		position = input_file[find_str] == "\n" || input_file[find_str] == ";" ? null : position;
 
-		if (file[find_str] == "\n" || file[find_str] == ";")
+		if (input_file[find_str] == "\n" || input_file[find_str] == ";")
 			continue;
 
 		// we know we start with the word:
 		let end_index;
 		if (!word) {
-			end_index = file.indexOf("|", find_str);
-			word = file.substring(find_str, end_index);
+			end_index = input_file.indexOf("|", find_str);
+			word = input_file.substring(find_str, end_index);
 			find_str += end_index - find_str + 1;
 
 			newOBJ[word] = {
@@ -63,15 +92,15 @@ function deserializeObject(input_file) {
 
 		// then start adding documents:
 		if (!doc_id) {
-			end_index = file.indexOf(":", find_str);
-			doc_id = parseInt(file.substring(find_str, end_index), 10);
+			end_index = input_file.indexOf(":", find_str);
+			doc_id = parseInt(input_file.substring(find_str, end_index), 10);
 			newOBJ[word].skiplist.insert(doc_id, []);
 			find_str += end_index - find_str + 1;
 		}
 
 		if (!position) {
-			end_index = file.indexOf(",", find_str);
-			position = parseInt(file.substring(find_str, end_index), 10);
+			end_index = input_file.indexOf(",", find_str);
+			position = parseInt(input_file.substring(find_str, end_index), 10);
 			newOBJ[word].skiplist.insert(doc_id, [position]);
 			find_str += end_index - find_str;
 		}
@@ -113,7 +142,7 @@ function deserializeObject(input_file) {
 // 	}
 // });
 
-deserializeObject(`./myIndex.dat`);
+//deserializeObject(`./myIndex.dat`, {} /* above code for example */);
 
 module.exports = {
 	serializeObject,
