@@ -14,16 +14,20 @@ module.exports = {
 		while (Math.random() < probability)
 			val_height++;
 
-		while (val_height >= skiplist.values.length)
+		if (!skiplist || !skiplist.values) console.log(skiplist);
+		while (val_height >= skiplist.values.length) {
+			console.log("adding values?", typeof skiplist == "function" ? skiplist() : "");
 			skiplist.values.push([{
 				value: Infinity
 			}]);
+		}
 
 		let top = skiplist.values.length - 1,
 			index = 0;
 
 		// using the top, we can see when it starts working:
 		while (top > -1) {
+			if (!skiplist.values[top]) console.log(skiplist, top, index);
 			if (doc_id == skiplist.values[top][index].value) {
 				skiplist.values[top][index].documents = [...skiplist.values[top][index].documents, ...doc_positions];
 				top--;

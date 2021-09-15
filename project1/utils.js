@@ -1,5 +1,5 @@
 const fs = require('fs');
-const skiplist = require('./skipList');
+const skipWork = require('./skipList');
 
 function roughSizeOfObject(object) {
 
@@ -85,21 +85,21 @@ function deserializeObject(input_file, half_doneOBJ) {
 			word = input_file.substring(find_str, end_index);
 			find_str += end_index - find_str + 1;
 
-			newOBJ[word] = new skiplist();
+			newOBJ[word] = new skipWork.skiplist();
 		}
 
 		// then start adding documents:
 		if (!doc_id) {
 			end_index = input_file.indexOf(":", find_str);
 			doc_id = parseInt(input_file.substring(find_str, end_index), 10);
-			newOBJ[word].insert(doc_id, []);
+			skipWork.insert(newOBJ[word], doc_id, []);
 			find_str += end_index - find_str + 1;
 		}
 
 		if (!position) {
 			end_index = input_file.indexOf(",", find_str);
 			position = parseInt(input_file.substring(find_str, end_index), 10);
-			newOBJ[word].insert(doc_id, [position]);
+			skipWork.insert(newOBJ[word], doc_id, [position]);
 			find_str += end_index - find_str;
 		}
 	}
