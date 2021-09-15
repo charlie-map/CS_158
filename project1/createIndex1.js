@@ -42,31 +42,34 @@ function findPages(string, stopwords, writer) {
 					i += 2;
 				}
 			} else {
-				// we know we're looking for "</"
-				if (string[i] == "<" && string[i + 1] == "/") {
-					open_tag = i;
-					i += 2;
-					continue;
-				}
-
 				// we add to the page info if necessary
 				page_id += !page_idDone && buffer == "id" ? string[i] : "";
 				page_title += buffer == "title" ? string[i] : "";
-	
+
 				// if this isn't true, we should be looking for words
 				// (only if in the <text> element)
-				if ((string[i] == " " || string[i] == "\n" || string[i] == "\t") && buffer == "text" && word.length) {
+				if ((string[i] == " " || string[i] == "\n" || string[i] == "\t" ||
+					string[i] == "<") && buffer == "text" && word.length) {
 					// add the word (after stemming) into the skip list
 					// see if we already have a skip list for this word:
 					let stem_word = stemmer(word);
 					if (!pages[stem_word])
 						pages[stem_word] = new skipWork.skipList();
 
+					page_id = parseInt(page_id, 10);
 					skipWork.insert(pages[stem_word], page_id, [i]);
 					word = "";
 				} else {
-					word += string[i].charCodeAt(0) >= 97 && string[i].charCodeAt(0) <= 122 ?
+					word += (string[i].charCodeAt(0) >= 97 && string[i].charCodeAt(0) <= 122) ||
+							(string[i].charCodeAt(0) >= 48 && string[i].charCodeAt(0) <= 57) ?
 						string[i] : "";
+				}
+
+				// we know we're looking for "</"
+				if (string[i] == "<" && string[i + 1] == "/") {
+					open_tag = i;
+					i += 2;
+					continue;
 				}
 			}
 		} else {
@@ -160,6 +163,6 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 
 let stop_words = fs.readFileSync(`./myStopWords.dat`, 'utf8').split("\n");
 // /media/hotboy/DUMP/wikidatawiki-20210901-pages-articles-multistream7.xml-p6052572p7552571
-//createIndex('./myCollection.dat', stop_words, './myTitles.dat');
+createIndex('./myCollection.dat', stop_words, './myTitles.dat');
 //createIndex(`/media/hotboy/DUMP/enwiki-20210901-pages-articles-multistream1.xml-p1p41242`, stop_words, `./myTitles.dat`);
-createIndex(`/media/hotboy/DUMP/enwiki-20210901-pages-articles-multistream16.xml-p20460153p20570392`, stop_words, `./myTitles.dat`);
+//createIndex(`/media/hotboy/DUMP/enwiki-20210901-pages-articles-multistream16.xml-p20460153p20570392`, stop_words, `./myTitles.dat`);
