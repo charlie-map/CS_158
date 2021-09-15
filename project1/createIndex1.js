@@ -42,10 +42,6 @@ function findPages(string, stopwords, writer) {
 					i += 2;
 				}
 			} else {
-				// we add to the page info if necessary
-				page_id += !page_idDone && buffer == "id" ? string[i] : "";
-				page_title += buffer == "title" ? string[i] : "";
-
 				// if this isn't true, we should be looking for words
 				// (only if in the <text> element)
 				if ((string[i] == " " || string[i] == "\n" || string[i] == "\t" ||
@@ -71,6 +67,10 @@ function findPages(string, stopwords, writer) {
 					i += 2;
 					continue;
 				}
+
+				// we add to the page info if necessary
+				page_id += !page_idDone && buffer == "id" ? string[i] : "";
+				page_title += buffer == "title" ? string[i] : "";
 			}
 		} else {
 			if (string[i] == ">" && buffer == null) {
