@@ -42,7 +42,7 @@ function serializeObject(textfile, object) {
 	while (obKey < objectKeys.length) {
 		string = `${objectKeys[obKey]}|`;
 
-		sub_object = object[objectKeys[obKey]].skiplist.values[0]
+		sub_object = object[objectKeys[obKey]].values[0]
 		for (let grabDocs = 0; grabDocs < sub_object.length - 1; grabDocs++) {
 			string += sub_object[grabDocs].value + ":" + sub_object[grabDocs].documents + ",;";
 		}
@@ -85,23 +85,21 @@ function deserializeObject(input_file, half_doneOBJ) {
 			word = input_file.substring(find_str, end_index);
 			find_str += end_index - find_str + 1;
 
-			newOBJ[word] = {
-				skiplist: new skiplist()
-			}
+			newOBJ[word] = new skiplist();
 		}
 
 		// then start adding documents:
 		if (!doc_id) {
 			end_index = input_file.indexOf(":", find_str);
 			doc_id = parseInt(input_file.substring(find_str, end_index), 10);
-			newOBJ[word].skiplist.insert(doc_id, []);
+			newOBJ[word].insert(doc_id, []);
 			find_str += end_index - find_str + 1;
 		}
 
 		if (!position) {
 			end_index = input_file.indexOf(",", find_str);
 			position = parseInt(input_file.substring(find_str, end_index), 10);
-			newOBJ[word].skiplist.insert(doc_id, [position]);
+			newOBJ[word].insert(doc_id, [position]);
 			find_str += end_index - find_str;
 		}
 	}

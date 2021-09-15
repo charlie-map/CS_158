@@ -1,30 +1,31 @@
 const probability = 0.5;
 
-function skipList() {
-	this.values = [
-		[{
-			value: Infinity
-		}]
-	];
-	this.insert = function(doc_id, doc_positions) {
+module.exports = {
+	skipList: function() {
+		this.values = [
+			[{
+				value: Infinity
+			}]
+		];
+	},
+	insert: function(skiplist, doc_id, doc_positions) {
 		// search for the position it would be in
 		let val_height = 0;
 		while (Math.random() < probability)
 			val_height++;
 
-		while (val_height >= this.values.length)
-			this.values.push([{
+		while (val_height >= skiplist.values.length)
+			skiplist.values.push([{
 				value: Infinity
 			}]);
 
-		let top = this.values.length - 1,
+		let top = skiplist.values.length - 1,
 			index = 0;
 
 		// using the top, we can see when it starts working:
 		while (top > -1) {
-			//if (!this.values[top][index]) console.log(this.values[top], index, doc_id);
-			if (doc_id == this.values[top][index].value) {
-				this.values[top][index].documents = [...this.values[top][index].documents, ...doc_positions];
+			if (doc_id == skiplist.values[top][index].value) {
+				skiplist.values[top][index].documents = [...skiplist.values[top][index].documents, ...doc_positions];
 				top--;
 				continue;
 			}
@@ -32,10 +33,10 @@ function skipList() {
 			// if we're on a level that interesects our val_height,
 			// build in the new value
 
-			if (doc_id < this.values[top][index].value) {
+			if (doc_id < skiplist.values[top][index].value) {
 				if (top <= val_height) {
 					// it will splice in between index and index + 1
-					this.values[top].splice(index, 0, {
+					skiplist.values[top].splice(index, 0, {
 						value: doc_id,
 						documents: doc_positions
 					});
@@ -44,42 +45,36 @@ function skipList() {
 			} else
 				index++;
 		}
-	};
-	this.search = function(val) {
-		let top = this.values.length - 1,
+	},
+	search: function(skiplist, val) {
+		let top = skiplist.values.length - 1,
 			index = 0;
 
-		while (top >= 0 && this.values[top][index].value != val) {
+		while (top >= 0 && skiplist.values[top][index].value != val) {
 			// we pretty much do the same thing as insert
 
-			if (val < this.values[top][index].value) {
+			if (val < skiplist.values[top][index].value) {
 				top--;
 			} else
 				index++;
 		}
 
-		return !this.values[top] ? false : this.values[top][index];
-	};
-	this.docIDs = function() {
+		return !skiplist.values[top] ? false : skiplist.values[top][index];
+	},
+	docIDS: function(skiplist) {
 		// to return all the document ids, we're going to just pull the bottom
 		// row of the array:
-		return this.values[0].splice(0, this.values[0].length - 1).map(item => {
+		return skiplist.values[0].splice(0, skiplist.values[0].length - 1).map(item => {
 			if (item.documents)
 				return item.value;
 		});
 	}
-};
+}
 
-// let skip_list1 = new skipList();
-// skip_list1.insert(1, [30, 40, 69]);
-// skip_list1.insert(2, [420, 3, 1]);
-
-// let skip_list2 = new skipList();
-// skip_list2.insert(4, [34, 345]);
-// skip_list2.insert(10, [34]);
-// skip_list2.insert(40, [6]);
+// let skip_list2 = new test_obj.skipList();
+// test_obj.insert(skip_list2, 4, [34, 345]);
+// test_obj.insert(skip_list2, 10, [34]);
+// test_obj.insert(skip_list2, 40, [6]);
 
 // console.log(skip_list2.values);
 // console.log(skip_list2.docIDs());
-
-module.exports = skipList;

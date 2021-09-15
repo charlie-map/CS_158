@@ -1,6 +1,6 @@
 const fs = require('fs');
 const stemmer = require('porter-stemmer').stemmer;
-const skiplist = require('./skipList');
+const skipWork = require('./skipList');
 const {
 	serializeObject
 } = require('./utils');
@@ -13,7 +13,6 @@ let pages = {},
 	page_title = "";
 
 function findPages(string, stopwords, writer) {
-
 	stopwords.forEach(stop => {
 		string = stop.length ? string.replace(new RegExp(`(\\s+)${stop}(\\s+)`, "g"), " ") : string;
 	});
@@ -54,7 +53,6 @@ function findPages(string, stopwords, writer) {
 				page_id += !page_idDone && buffer == "id" ? string[i] : "";
 				page_title += buffer == "title" ? string[i] : "";
 	
-
 				// if this isn't true, we should be looking for words
 				// (only if in the <text> element)
 				if ((string[i] == " " || string[i] == "\n" || string[i] == "\t") && buffer == "text" && word.length) {
@@ -62,12 +60,9 @@ function findPages(string, stopwords, writer) {
 					// see if we already have a skip list for this word:
 					let stem_word = stemmer(word);
 					if (!pages[stem_word])
-						pages[stem_word] = {};
+						pages[stem_word] = new skipWork.skipList();
 
-					if (!pages[stem_word].skiplist)
-						pages[stem_word].skiplist = new skiplist;
-
-					pages[stem_word].skiplist.insert(page_id, [i]);
+					skipWork.insert(pages[stem_word], page_id, [i]);
 					word = "";
 				} else {
 					word += string[i].charCodeAt(0) >= 97 && string[i].charCodeAt(0) <= 122 ?
@@ -110,9 +105,7 @@ function findPages(string, stopwords, writer) {
 				if (!page_idDone && page_id && page_title &&
 					((string[i - 5] == "t" && string[i - 4] == "i" && string[i - 3] == "t" && string[i - 2] == "l" && string[i - 1] == "e") ||
 						string[i - 2] == "i" && string[i - 1] == "d")) {
-					page_id = parseInt(page_id, 10);
 					writer.write(`${page_id}|${page_title}\n`);
-					page_id = page_id.toString();
 					page_idDone = true;
 				}
 
@@ -135,7 +128,9 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 
 	fs.truncateSync(outputer, 0);
 
-	let writerTitleIndex = fs.createWriteStream(outputer);
+	let writerTitleIndex = fs.createWriteStream(outputer, {
+		mode: 0o755
+	});
 
 	/*
 		example page:
@@ -156,6 +151,7 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 	});
 
 	source.on('end', () => {
+		console.log("end");
 		// serialize pages into the inverted index:
 		serializeObject(`/media/hotboy/DUMP/myIndex.dat`, pages);
 		console.timeEnd();
@@ -164,5 +160,6 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 
 let stop_words = fs.readFileSync(`./myStopWords.dat`, 'utf8').split("\n");
 // /media/hotboy/DUMP/wikidatawiki-20210901-pages-articles-multistream7.xml-p6052572p7552571
-//createIndex('./myCollection.dat', stop_words, './myTitles.dat');
-createIndex(`/media/hotboy/DUMP/enwiki-20210901-pages-articles-multistream1.xml-p1p41242`, stop_words, `./myTitles.dat`);
+createIndex('./myCollection.dat', stop_words, './myTitles.dat');
+//createIndex(`/media/hotboy/DUMP/enwiki-20210901-pages-articles-multistream1.xml-p1p41242`, stop_words, `./myTitles.dat`);
+//createIndex(`/media/hotboy/DUMP/enwiki-20210901-pages-articles-multistream16.xml-p20460153p20570392`, stop_words, `./myTitles.dat`);
