@@ -59,6 +59,14 @@ function skipList() {
 		}
 
 		return !this.values[top] ? false : this.values[top][index];
+	};
+	this.docIDs = function() {
+		// to return all the document ids, we're going to just pull the bottom
+		// row of the array:
+		return this.values[0].splice(0, this.values[0].length - 1).map(item => {
+			if (item.documents)
+				return item.value;
+		});
 	}
 };
 
@@ -72,5 +80,6 @@ function skipList() {
 // skip_list2.insert(40, [6]);
 
 // console.log(skip_list2.values);
+// console.log(skip_list2.docIDs());
 
 module.exports = skipList;
