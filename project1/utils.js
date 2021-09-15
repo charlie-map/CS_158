@@ -85,7 +85,7 @@ function deserializeObject(input_file, half_doneOBJ) {
 			word = input_file.substring(find_str, end_index);
 			find_str += end_index - find_str + 1;
 
-			newOBJ[word] = new skipWork.skiplist();
+			newOBJ[word] = new skipWork.skipList();
 		}
 
 		// then start adding documents:
