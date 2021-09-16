@@ -3,9 +3,9 @@ const probability = 0.5;
 module.exports = {
 	skipList: function() {
 		this.values = [
-			[{
-				value: Infinity
-			}]
+			[
+				Infinity
+			]
 		];
 	},
 	insert: function(skiplist, doc_id, doc_positions) {
@@ -15,17 +15,17 @@ module.exports = {
 			val_height++;
 
 		while (val_height >= skiplist.values.length)
-			skiplist.values.push([{
-				value: Infinity
-			}]);
+			skiplist.values.push([
+				Infinity
+			]);
 
 		let top = skiplist.values.length - 1,
 			index = 0;
 
 		// using the top, we can see when it starts working:
 		while (top > -1) {
-			if (doc_id == skiplist.values[top][index].value) {
-				skiplist.values[top][index].documents = [...skiplist.values[top][index].documents, ...doc_positions];
+			if (skiplist.values[top][index] && doc_id == skiplist.values[top][index][0]) {
+				skiplist.values[top][index][1].push(doc_positions);
 				top--;
 				continue;
 			}
@@ -33,13 +33,13 @@ module.exports = {
 			// if we're on a level that interesects our val_height,
 			// build in the new value
 
-			if (doc_id < skiplist.values[top][index].value) {
+			if (doc_id < skiplist.values[top][index].length ? skiplist.values[top][index][0] : skiplist.values[top][index]) {
 				if (top <= val_height) {
 					// it will splice in between index and index + 1
-					skiplist.values[top].splice(index, 0, {
-						value: doc_id,
-						documents: doc_positions
-					});
+					skiplist.values[top].splice(index, 0, [
+						doc_id,
+						[doc_positions]
+					]);
 				}
 				top--;
 			} else
@@ -50,10 +50,10 @@ module.exports = {
 		let top = skiplist.values.length - 1,
 			index = 0;
 
-		while (top >= 0 && skiplist.values[top][index].value != val) {
+		while (top >= 0 && skiplist.values[top][index][0] != val) {
 			// we pretty much do the same thing as insert
 
-			if (val < skiplist.values[top][index].value) {
+			if (val < skiplist.values[top][index][0]) {
 				top--;
 			} else
 				index++;
@@ -65,8 +65,8 @@ module.exports = {
 		// to return all the document ids, we're going to just pull the bottom
 		// row of the array:
 		return skiplist.values[0].splice(0, skiplist.values[0].length - 1).map(item => {
-			if (item.documents)
-				return item.value;
+			if (item[1])
+				return item[0];
 		});
 	}
 }

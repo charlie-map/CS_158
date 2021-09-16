@@ -53,7 +53,7 @@ function findPages(string, stopwords, writer) {
 						pages[stem_word] = new skipWork.skipList();
 
 					page_id = parseInt(page_id, 10);
-					skipWork.insert(pages[stem_word], page_id, [i]);
+					skipWork.insert(pages[stem_word], page_id, i);
 					word = "";
 				} else {
 					word += (string[i].charCodeAt(0) >= 97 && string[i].charCodeAt(0) <= 122) ||
