@@ -8,7 +8,7 @@ const {
 let pages = Object.create(null),
 	open_tag = null,
 	buffer = null,
-	buffer_place, word, page_id = "",
+	buffer_place, page_id = "",
 	page_idDone = false,
 	page_title = "";
 
@@ -18,7 +18,7 @@ function findPages(string, stopwords, writer) {
 	});
 	string = string.toLowerCase();
 
-	word = "";
+	let word = "";
 	for (let i = 0; i < string.length; i++) {
 
 		if (open_tag == null) {
