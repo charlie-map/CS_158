@@ -42,9 +42,9 @@ function serializeObject(textfile, object) {
 	while (obKey < objectKeys.length) {
 		string = `${objectKeys[obKey]}|`;
 
-		sub_object = object[objectKeys[obKey]].values[0]
-		for (let grabDocs = 0; grabDocs < sub_object.length - 1; grabDocs++) {
-			string += sub_object[grabDocs].value + ":" + sub_object[grabDocs].documents + ",;";
+		sub_object = object[objectKeys[obKey]];
+		for (let grabDocs = 0; grabDocs < sub_object.length; grabDocs++) {
+			string += sub_object[grabDocs][0] + ":" + sub_object[grabDocs][1] + ",;";
 		}
 
 		string += "\n";

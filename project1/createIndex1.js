@@ -52,22 +52,24 @@ function findPages(string, stopwords, writer) {
 						let stem_word = stemmer(word);
 						page_id = parseInt(page_id, 10);
 						if (!pages[stem_word]) {
-							pages[stem_word] = [[page_id, [i]]];
-							word = "";
-							continue;
-						}
+							pages[stem_word] = [
+								[page_id, [i]]
+							];
+						} else {
 
-						let added = false, less_than = 0;
-						for (let find = 0; find < pages[stem_word].length; find++) {
-							if (pages[stem_word][find][0] == page_id) {
-								pages[stem_word][find][1].push(i);
-								added = true;
-							} else if (pages[stem_word][find][0] < page_id)
-								less_than = find;
-						}
+							let added = false,
+								less_than = 0;
+							for (let find = 0; find < pages[stem_word].length; find++) {
+								if (pages[stem_word][find][0] == page_id) {
+									pages[stem_word][find][1].push(i);
+									added = true;
+								} else if (pages[stem_word][find][0] < page_id)
+									less_than = find;
+							}
 
-						if (!added)
-							pages[stem_word].splice(less_than + 1, 0, [page_id, [i]]);
+							if (!added)
+								pages[stem_word].splice(less_than + 1, 0, [page_id, [i]]);
+						}
 					}
 					word = "";
 				} else {
