@@ -45,19 +45,35 @@ function findPages(string, stopwords, writer) {
 				// if this isn't true, we should be looking for words
 				// (only if in the <text> element)
 				if ((string[i] == " " || string[i] == "\n" || string[i] == "\t" ||
-					string[i] == "<") && buffer == "text" && word.length) {
+						string[i] == "<") && buffer == "text" && word.length) {
 					// add the word (after stemming) into the skip list
 					// see if we already have a skip list for this word:
-					let stem_word = stemmer(word);
-					if (!pages[stem_word])
-						pages[stem_word] = new skipWork.skipList();
+					if (word.length < 25) {
+						let stem_word = stemmer(word);
+						page_id = parseInt(page_id, 10);
+						if (!pages[stem_word]) {
+							pages[stem_word] = [[page_id, [i]]];
+							word = "";
+							continue;
+						}
 
-					page_id = parseInt(page_id, 10);
-					skipWork.insert(pages[stem_word], page_id, i);
+						let added = false;
+						for (let find = 0; find < pages[stem_word].length; find++) {
+							if (pages[stem_word][find][0] == page_id) {
+								pages[stem_word][find][1].push(i);
+								added = true;
+							}
+						}
+
+						if (!added) {
+							pages[stem_word][pages[stem_word].length - 1][0] = page_id;
+							pages[stem_word][pages[stem_word].length - 1][1] = [i];
+						}
+					}
 					word = "";
 				} else {
 					word += (string[i].charCodeAt(0) >= 97 && string[i].charCodeAt(0) <= 122) ||
-							(string[i].charCodeAt(0) >= 48 && string[i].charCodeAt(0) <= 57) ?
+						(string[i].charCodeAt(0) >= 48 && string[i].charCodeAt(0) <= 57) ?
 						string[i] : "";
 				}
 
