@@ -59,7 +59,7 @@ function findPages(string, stopwords, writer) {
 
 							let added = false,
 								less_than = 0;
-							for (let find = 0; find < pages[stem_word].length; find++) {
+							for (let find = 0; find < stem_page.length; find++) {
 								if (stem_page[find][0] == page_id) {
 									pages[stem_word][find][1].push(i);
 									added = true;
