@@ -49,9 +49,9 @@ function findPages(string, stopwords, writer) {
 					// add the word (after stemming) into the skip list
 					// see if we already have a skip list for this word:
 					if (word.length < 25) {
-						let stem_word = stemmer(word);
+						let stem_word = stemmer(word), stem_page = pages[stem_word];
 						page_id = parseInt(page_id, 10);
-						if (!pages[stem_word]) {
+						if (!stem_page) {
 							pages[stem_word] = [
 								[page_id, [i]]
 							];
@@ -60,10 +60,10 @@ function findPages(string, stopwords, writer) {
 							let added = false,
 								less_than = 0;
 							for (let find = 0; find < pages[stem_word].length; find++) {
-								if (pages[stem_word][find][0] == page_id) {
+								if (stem_page[find][0] == page_id) {
 									pages[stem_word][find][1].push(i);
 									added = true;
-								} else if (pages[stem_word][find][0] < page_id)
+								} else if (stem_page[find][0] < page_id)
 									less_than = find;
 							}
 
