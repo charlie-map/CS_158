@@ -1,6 +1,41 @@
 const fs = require('fs');
 const skipWork = require('./skipList');
 
+function arrAndGate(args) {
+	// args can be any number of sub arrays,
+	// 1: grab a number from the first array,
+	// 2: check the other arrays for the number,
+	// 	  a) if one of them doesn't have it, remove it from the array we grabbed it from
+	//	  b) if one of them does have it, remove it from that array
+	// 3: 
+}
+
+function quicksort(array, low, high) {
+	if (low < high) {
+		let pivot = partition(array, low, high);
+		quicksort(array, pivot + 1, high);
+		quicksort(array, low, pivot - 1);
+	}
+}
+
+function partition(array, low, pivot) {
+	let lowest = low - 1, buffer;
+	for (let j = low; j < pivot; j++) {
+		if (array[j][0] < array[pivot][0]) {
+			lowest++;
+			buffer = array[j];
+			array[j] = array[lowest];
+			array[lowest] = buffer;
+		}
+	}
+
+	lowest++;
+	buffer = array[pivot];
+	array[pivot] = array[lowest];
+	array[lowest] = buffer;
+	return lowest;
+}
+
 function roughSizeOfObject(object) {
 
 	var objectList = [];
@@ -43,6 +78,7 @@ function serializeObject(textfile, object) {
 		string = `${objectKeys[obKey]}|`;
 
 		sub_object = object[objectKeys[obKey]];
+		quicksort(sub_object, 0, sub_object.length - 1);
 		for (let grabDocs = 0; grabDocs < sub_object.length; grabDocs++) {
 			string += sub_object[grabDocs][0] + ":" + sub_object[grabDocs][1] + ",;";
 		}

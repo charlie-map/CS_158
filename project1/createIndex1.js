@@ -67,8 +67,11 @@ function findPages(string, stopwords, writer) {
 									less_than = find;
 							}
 
-							if (!added)
-								pages[stem_word].splice(less_than + 1, 0, [page_id, [i]]);
+							if (!added) {
+								pages[stem_word][pages[stem_word].length] = [];
+								pages[stem_word][pages[stem_word].length - 1][0] = page_id;
+								pages[stem_word][pages[stem_word].length - 1][1] = [i];
+							}
 						}
 					}
 					word = "";
