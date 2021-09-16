@@ -57,18 +57,17 @@ function findPages(string, stopwords, writer) {
 							continue;
 						}
 
-						let added = false;
+						let added = false, less_than = 0;
 						for (let find = 0; find < pages[stem_word].length; find++) {
 							if (pages[stem_word][find][0] == page_id) {
 								pages[stem_word][find][1].push(i);
 								added = true;
-							}
+							} else if (pages[stem_word][find][0] < page_id)
+								less_than = find;
 						}
 
-						if (!added) {
-							pages[stem_word][pages[stem_word].length - 1][0] = page_id;
-							pages[stem_word][pages[stem_word].length - 1][1] = [i];
-						}
+						if (!added)
+							pages[stem_word].splice(less_than + 1, 0, [page_id, [i]]);
 					}
 					word = "";
 				} else {
