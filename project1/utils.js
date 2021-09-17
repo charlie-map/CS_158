@@ -66,10 +66,8 @@ function arrOrGate(args) {
 		pointers[lowest]++;
 	}
 
-	console.log(meta);
+	return meta;
 }
-
-arrOrGate([[0,3,6],[6,8,12], [1, 2]]);
 
 function quicksort(array, low, high) {
 	if (low < high) {
@@ -183,21 +181,21 @@ function deserializeObject(input_file, half_doneOBJ) {
 			word = input_file.substring(find_str, end_index);
 			find_str += end_index - find_str + 1;
 
-			newOBJ[word] = new skipWork.skipList();
+			newOBJ[word] = [];
 		}
 
 		// then start adding documents:
 		if (!doc_id) {
 			end_index = input_file.indexOf(":", find_str);
 			doc_id = parseInt(input_file.substring(find_str, end_index), 10);
-			skipWork.insert(newOBJ[word], doc_id, []);
+			newOBJ[word].push([doc_id, []])
 			find_str += end_index - find_str + 1;
 		}
 
 		if (!position) {
 			end_index = input_file.indexOf(",", find_str);
 			position = parseInt(input_file.substring(find_str, end_index), 10);
-			skipWork.insert(newOBJ[word], doc_id, [position]);
+			newOBJ[word][newOBJ[word].length - 1][1].push(position);
 			find_str += end_index - find_str;
 		}
 	}
@@ -238,9 +236,11 @@ function deserializeObject(input_file, half_doneOBJ) {
 // 	}
 // });
 
-//deserializeObject(`./myIndex.dat`, {} /* above code for example */);
+console.log(deserializeObject(fs.readFileSync(`/media/hotboy/DUMP/myIndex.dat`).toString(), {} /* above code for example */));
 
 module.exports = {
+	arrAndGate,
+	arrOrGate,
 	serializeObject,
 	deserializeObject
 }
