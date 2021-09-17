@@ -6,9 +6,70 @@ function arrAndGate(args) {
 	// 1: grab a number from the first array,
 	// 2: check the other arrays for the number,
 	// 	  a) if one of them doesn't have it, remove it from the array we grabbed it from
-	//	  b) if one of them does have it, remove it from that array
-	// 3: 
+	//	  b) if one of them does have it, we're good to keep checking
+	// 3: any elements remaining are the finalists
+
+	let main_test = args[0];
+
+	for (let i = 0; i < main_test.length; i++) {
+		// grabbing number from first array
+
+		let argCheck;
+		// check the other arrays:
+		for (argCheck = 1; argCheck < args.length; argCheck++) {
+			let contains = false;
+
+			for (let findMatch = 0; findMatch < args[argCheck].length; findMatch++) {
+				if (args[argCheck][findMatch] == main_test[i]) {
+					contains = true;
+				}
+			}
+
+			if (!contains)
+				break;
+		}
+
+		if (argCheck < args.length) { // remove from array
+			main_test.splice(i, 1);
+			i--;
+		}
+	}
+
+	return main_test;
 }
+
+function arrOrGate(args) {
+	let pointers = [0],
+		meta = [];
+	let metaPlace = 0;
+
+	while (args[metaPlace] && pointers[metaPlace] < args[metaPlace].length + 1) {
+		let lowest = args[metaPlace][pointers[metaPlace]] != undefined ? metaPlace : metaPlace += 1;
+
+		// look at each other pointer to find the final value;
+		for (let checkP = metaPlace + 1; checkP < args.length; checkP++) {
+			if (!pointers[checkP])
+				pointers[checkP] = 0;
+
+			let checkPoint = args[checkP][pointers[checkP]];
+			let lowestVal = lowest != -1 ? args[lowest][pointers[lowest]] : -1;
+
+			pointers[checkP] += checkPoint == lowestVal ? 1 : 0;
+			lowest = checkPoint < lowestVal || lowest == -1 ? checkP : lowest;
+		}
+
+		if (pointers[lowest] == undefined || args[lowest][pointers[lowest]] == undefined) {
+			metaPlace++;
+			continue;
+		}
+		meta.push(args[lowest][pointers[lowest]]);
+		pointers[lowest]++;
+	}
+
+	console.log(meta);
+}
+
+arrOrGate([[0,3,6],[6,8,12], [1, 2]]);
 
 function quicksort(array, low, high) {
 	if (low < high) {
@@ -19,7 +80,8 @@ function quicksort(array, low, high) {
 }
 
 function partition(array, low, pivot) {
-	let lowest = low - 1, buffer;
+	let lowest = low - 1,
+		buffer;
 	for (let j = low; j < pivot; j++) {
 		if (array[j][0] < array[pivot][0]) {
 			lowest++;
