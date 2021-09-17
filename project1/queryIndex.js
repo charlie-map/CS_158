@@ -1,11 +1,24 @@
 const fs = require('fs');
 const stemmer = require('porter-stemmer').stemmer;
 const {
+	arrAndGate,
+	arrOrGate,
 	deserializeObject
 } = require('./utils');
 
-let skiplist;
+let pages;
 // declaring globally for use through multiple functions
+
+function grabDocs(word) {
+	let docs = [];
+
+	let page_docs = pages[word];
+	for (let i = 0; i < page_docs.length; i++) {
+		docs.push(page_docs[i][0]);
+	}
+
+	return docs;
+}
 
 function queryIndexer(query_string, stopwords, docWriter) {
 	stopwords = fs.readFileSync(stopwords, 'utf8').split("\n");
@@ -22,11 +35,12 @@ function queryIndexer(query_string, stopwords, docWriter) {
 
 	query_string = query_string.replace(/[^a-zA-Z0-9"() ]/g, "");
 
-	let BQ_amount = 0, qStrings = [];
+	let BQ_amount = 0,
+		qStrings = [];
 	let pre = 0;
 	for (let run = 0; run < query_string.length + 1; run++) {
 		if (query_type == 1 && (query_string[run + 2] == "D" &&
-			query_string[run + 1] == "N" && query_string[run] == "A")) {
+				query_string[run + 1] == "N" && query_string[run] == "A")) {
 			qStrings.push(query_string[run] + query_string[run + 1] + query_string[run + 2]);
 			BQ_amount++;
 			run += 3;
@@ -35,7 +49,7 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		}
 
 		if (query_type == 1 && (query_string[run] == "O" &&
-			query_string[run + 1] == "R")) {
+				query_string[run + 1] == "R")) {
 			qStrings.push(query_string[run] + query_string[run + 1]);
 			BQ_amount++;
 			run += 2;
@@ -44,14 +58,14 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		}
 
 		if ((query_string[run] == " " || query_string[run] == undefined ||
-			query_string[run] == ")") && pre < run) {
+				query_string[run] == ")") && pre < run) {
 			// add to query_length
-			qStrings.push(stemmer(query_string.substring(pre, run).replace("(", "")));
+			qStrings.push(stemmer(query_string.substring(pre, run).toLowerCase().replace(/[( ]/g, "")));
 			pre = run + 1;
 		}
 
-		if (query_type == 1 && (query_string[run] == "(" || 
-			query_string[run] == ")")) {
+		if (query_type == 1 && (query_string[run] == "(" ||
+				query_string[run] == ")")) {
 			qStrings.push(query_string[run]);
 			BQ_amount++;
 		}
@@ -65,8 +79,7 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		query_string = stop.length ? query_string.replace(new RegExp(`(\\s+)${stop}(\\s+)`, "g"), " ") : query_string;
 	});
 
-	// now with the finished array we can compare to our skiplist
-	console.log(qStrings);
+	// now with the finished array we can compare to our pages
 	let comparitives = [];
 	/*
 		for finding documents, we will need first just a normal array,
@@ -77,9 +90,50 @@ function queryIndexer(query_string, stopwords, docWriter) {
 			if there are any parentheses, we will need to construct a sub array
 			to work through those sub problems of the query first
 	*/
+	if (query_type == 1) {
+		function findComparatives(qs, cmp, start) {
+			let bq_type;
+			for (let strRun = start; strRun < qs.length; strRun++) {
+				console.log(qs[strRun]);
+				// our first thing we look for is parentheses, if we see an open
+				// parenthesis, we want to go into a sub findComparatives
+				if (qs[strRun] == "(") {
+					console.log("sub", cmp);
+					console.log(cmp, "compares?", findComparatives(qs, cmp, strRun + 1));
+					cmp.push(findComparatives(qs, cmp, strRun + 1));
+					console.log("uncurry", cmp);
+					strRun++;
+				}
 
-	for (let strRun = 0; strRun < query_string.length; strRun++) {
+				// if we find a close parenthesis, we want to end our current level:
+				if (qs[strRun] == ")") {
+					console.log(cmp);
+					return cmp;
+				}
 
+				bq_type = qs[strRun] == "AND" ? 2 : qs[strRun] == "OR" ? 1 : undefined;
+				strRun += qs[strRun] == "AND" || qs[strRun] == "OR" ? 1 : 0;
+
+				// the next step is constanly adding to cmp if none of the above happen
+				cmp.push(grabDocs(qs[strRun]));
+
+				// at this point we need to check bq_type,
+				// if it has a value, then we need to do something to the cmp,
+				// otherwise nothing happens and we keep going
+
+				// based on the generizability of the gate operations,
+				// we can throw whatever is inside of cmp into there
+
+				console.log(bq_type, cmp);
+				if (bq_type == 2)
+					cmp = arrAndGate(cmp);
+				else if (bq_type == 1)
+					cmp = arrOrGate(cmp);
+			}
+			return cmp;
+		}
+		console.log(qStrings);
+		console.log(findComparatives(qStrings, comparitives, 0));
 	}
 }
 
@@ -97,7 +151,7 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 		let chunk;
 
 		while (null !== (chunk = source.read())) {
-			skiplist = deserializeObject(chunk.toString(), skiplist);
+			pages = deserializeObject(chunk.toString(), pages);
 		}
 	});
 

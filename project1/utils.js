@@ -236,7 +236,7 @@ function deserializeObject(input_file, half_doneOBJ) {
 // 	}
 // });
 
-console.log(deserializeObject(fs.readFileSync(`/media/hotboy/DUMP/myIndex.dat`).toString(), {} /* above code for example */));
+//console.log(deserializeObject(fs.readFileSync(`/media/hotboy/DUMP/myIndex.dat`).toString(), {} /* above code for example */));
 
 module.exports = {
 	arrAndGate,
