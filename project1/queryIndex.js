@@ -21,8 +21,6 @@ function grabDocs(word) {
 }
 
 function queryIndexer(query_string, stopwords, docWriter) {
-	stopwords = fs.readFileSync(stopwords, 'utf8').split("\n");
-
 	// first determine the type of query string:
 	// OWQ if query_string.split(" ").length == 1
 	// BQ if query_string CONTAINS "AND" or "OR"
@@ -94,20 +92,15 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		function findComparatives(qs, cmp, start) {
 			let bq_type;
 			for (let strRun = start; strRun < qs.length; strRun++) {
-				console.log(qs[strRun]);
 				// our first thing we look for is parentheses, if we see an open
 				// parenthesis, we want to go into a sub findComparatives
 				if (qs[strRun] == "(") {
-					console.log("sub", cmp);
-					console.log(cmp, "compares?", findComparatives(qs, cmp, strRun + 1));
-					cmp.push(findComparatives(qs, cmp, strRun + 1));
-					console.log("uncurry", cmp);
-					strRun++;
+					cmp = findComparatives(qs, [], strRun + 1);
+					strRun = qs.indexOf(")", strRun) + 1;
 				}
 
 				// if we find a close parenthesis, we want to end our current level:
 				if (qs[strRun] == ")") {
-					console.log(cmp);
 					return cmp;
 				}
 
@@ -124,11 +117,10 @@ function queryIndexer(query_string, stopwords, docWriter) {
 				// based on the generizability of the gate operations,
 				// we can throw whatever is inside of cmp into there
 
-				console.log(bq_type, cmp);
 				if (bq_type == 2)
-					cmp = arrAndGate(cmp);
+					cmp = [arrAndGate(cmp)];
 				else if (bq_type == 1)
-					cmp = arrOrGate(cmp);
+					cmp = [arrOrGate(cmp)];
 			}
 			return cmp;
 		}
@@ -138,6 +130,7 @@ function queryIndexer(query_string, stopwords, docWriter) {
 }
 
 function findQueries(skiplist_file, query_page, stopwords, doc_out) {
+	stopwords = fs.readFileSync(stopwords, 'utf8').split("\n");
 	console.time();
 
 	let source = fs.createReadStream(skiplist_file, {
