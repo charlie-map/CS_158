@@ -39,7 +39,9 @@ function queryIndexer(query_string, stopwords, docWriter) {
 	for (let run = 0; run < query_string.length + 1; run++) {
 		if (query_type == 1 && (query_string[run + 2] == "D" &&
 				query_string[run + 1] == "N" && query_string[run] == "A")) {
-			qStrings.push(query_string[run] + query_string[run + 1] + query_string[run + 2]);
+			qStrings.push("AND");
+			// if we find an AND, we need to also add a "(" to the item previous
+			// to it, and then after the next item as well
 			BQ_amount++;
 			run += 3;
 			pre = run;
@@ -92,20 +94,23 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		function findComparatives(qs, cmp, start) {
 			let bq_type;
 			for (let strRun = start; strRun < qs.length; strRun++) {
-				// our first thing we look for is parentheses, if we see an open
-				// parenthesis, we want to go into a sub findComparatives
+				// if we find a close parenthesis, we want to end our current level:
+				if (qs[strRun] == ")")
+					return cmp;
+
+				// our second thing we look for is open parentheses, if we see one,
+				// we want to go into a sub findComparatives
 				if (qs[strRun] == "(") {
-					cmp = findComparatives(qs, [], strRun + 1);
+					let cmpRe = findComparatives(qs, [], strRun + 1)[0];
+					if (cmpRe.length)
+						cmp.push(cmpRe);
 					strRun = qs.indexOf(")", strRun) + 1;
 				}
 
-				// if we find a close parenthesis, we want to end our current level:
-				if (qs[strRun] == ")") {
-					return cmp;
+				if (qs[strRun] == "AND" || qs[strRun] == "OR") {
+					bq_type = qs[strRun] == "AND" ? 2 : qs[strRun] == "OR" ? 1 : undefined;
+					continue;
 				}
-
-				bq_type = qs[strRun] == "AND" ? 2 : qs[strRun] == "OR" ? 1 : undefined;
-				strRun += qs[strRun] == "AND" || qs[strRun] == "OR" ? 1 : 0;
 
 				// the next step is constanly adding to cmp if none of the above happen
 				cmp.push(grabDocs(qs[strRun]));
