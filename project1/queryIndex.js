@@ -32,14 +32,15 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		query_string[0] == "\"" && query_string[query_string.length - 1] == "\"" ? 2 : 3;
 
 	let qStrings = cleanQuery(query_string, stopwords);
-	if (query_type == 1) {
-		console.log(makeBQQuery(qStrings));
-	}
+	if (query_type == 1)
+		makeBQQuery(qStrings, 0, qStrings.length - 1);
+
+	console.log(qStrings);
 
 	// now with the finished array we can compare to our pages
 	let comparitives = [];
 
-	//return;
+	return;
 	/*
 		for finding documents, we will need first just a normal array,
 		as we go through each term in the query, we will also check
@@ -138,7 +139,7 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 	});
 }
 
-//findQueries("/media/hotboy/DUMP/myIndex.dat", `./myQueries.dat`, `./myStopWords.dat`, `./myDocs.dat`);
+findQueries("/media/hotboy/DUMP/myIndex.dat", `./myQueries.dat`, `./myStopWords.dat`, `./myDocs.dat`);
 // console.log(queryIndexer("(spACE AND odyssey{}) OR orange", "./myStopWords.dat"));;
 
 function makeBQQuery(qString, low, high) {
@@ -147,31 +148,37 @@ function makeBQQuery(qString, low, high) {
 		if (pivot < low)
 			return;
 
-		// if pivot is a value, we want to put parentheses on both sides, aka:
-		// go from ["banana", "OR", "apple"] to
-		// ["(", "banana", ")", "OR", "(", "apple", ")"]
+		// since pivot could have AND or OR at its position, we need to know because
+		// we only want to splice in () if it's an or
+		if (qString[pivot] == "OR") {
 
-		// BUT there is some times when we don't want to add on one side, say:
-		// ["apple", "OR", "(", "tree", "AND", "plant", "("]
-		// since the parentheses are already there, we don't want to add extras:
+			// if pivot is a value, we want to put parentheses on both sides, aka:
+			// go from ["banana", "OR", "apple"] to
+			// ["(", "banana", ")", "OR", "(", "apple", ")"]
 
-		let lower = 0, higher = 0;
-		if (!(qString[pivot + 1] == "(" && qString[high] == ")")) {
-			qString.splice(high + 1, 0, ")"); // high side
-			qString.splice(pivot + 1, 0, "("); // high side
+			// BUT there is some times when we don't want to add on one side, say:
+			// ["apple", "OR", "(", "tree", "AND", "plant", "("]
+			// since the parentheses are already there, we don't want to add extras:
 
-			higher = 2;
+			let lower = 0,
+				higher = 0;
+			if (!(qString[pivot + 1] == "(" && qString[high] == ")")) {
+				qString.splice(high + 1, 0, ")"); // high side
+				qString.splice(pivot + 1, 0, "("); // high side
+
+				higher = 2;
+			}
+
+			if (!(qString[pivot - 1] == ")" && qString[low] == "(")) {
+				qString.splice(pivot, 0, ")"); // low side
+				qString.splice(low, 0, "("); // low side
+
+				lower = 2;
+			}
+
+			high += lower + higher;
+			pivot += lower;
 		}
-
-		if (!(qString[pivot - 1] == ")" && qString[low] == "(")) {
-			qString.splice(pivot, 0, ")"); // low side
-			qString.splice(low, 0, "("); // low side
-
-			lower = 2;
-		}
-
-		high += lower + higher;
-		pivot += lower;
 
 		makeBQQuery(qString, pivot + 1, high); // high side
 		makeBQQuery(qString, low, pivot - 1); // low side
@@ -194,32 +201,13 @@ function BQpartition(qString, low, pivot) {
 		else if (qString[j] == ")")
 			close--;
 
-		if (qString[j] == "OR" && close < lowest[1]) {
+		if ((qString[j] == "OR" || qString[j] == "AND") && close < lowest[1]) {
 			lowest = [j, close];
 		}
 	}
 
 	return lowest[0];
 }
-
-let arr = ["(", "space", "OR", "(", "odyssei", "OR", "green", "AND", "bean", ")", ")", "OR", "potato", "AND", "chicken"];
-console.log(makeBQQuery(arr, 0, arr.length - 1));
-//makeBQQuery(["space", "AND", "odyssei"], 0, 2);
-
-// if (qString[j] == "(" && !close) {
-// 			lowest = j;
-// 			// in this case we then need to find the close
-// 			close = 1;
-// 		} else if (qString[j] == "(" && close)
-// 			close++;
-
-// 		if (qString[j] == ")" && close == 1) {
-// 			// we found our close parenthesis
-// 			// at this point we want to look at the value right after it
-// 			lowest = j + 1;
-// 			break;
-// 		} else if (qString[j] == ")" && close > 1)
-// 			close--;
 
 function cleanQuery(string, stopwords) {
 	let pre = 0;
