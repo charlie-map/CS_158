@@ -42,6 +42,8 @@ function queryIndexer(query_string, stopwords, docWriter) {
 			qStrings.push("AND");
 			// if we find an AND, we need to also add a "(" to the item previous
 			// to it, and then after the next item as well
+			// ^ the next item is troublesome, because if there's a "("
+			// after it, then we need to wait until ")"
 			BQ_amount++;
 			run += 3;
 			pre = run;
@@ -59,7 +61,6 @@ function queryIndexer(query_string, stopwords, docWriter) {
 
 		if ((query_string[run] == " " || query_string[run] == undefined ||
 				query_string[run] == ")") && pre < run) {
-			// add to query_length
 			qStrings.push(stemmer(query_string.substring(pre, run).toLowerCase().replace(/[( ]/g, "")));
 			pre = run + 1;
 		}
@@ -100,20 +101,26 @@ function queryIndexer(query_string, stopwords, docWriter) {
 
 				// our second thing we look for is open parentheses, if we see one,
 				// we want to go into a sub findComparatives
+				console.log(qs[strRun]);
 				if (qs[strRun] == "(") {
 					let cmpRe = findComparatives(qs, [], strRun + 1)[0];
+					console.log("sub problem?", cmpRe);
 					if (cmpRe.length)
 						cmp.push(cmpRe);
+					console.log(cmp, bq_type);
 					strRun = qs.indexOf(")", strRun) + 1;
+				} else {
+					// the next step is constanly adding to cmp if none of the above happen
+					console.log(qs[strRun]);
+					cmp.push(grabDocs(qs[strRun]));
 				}
 
 				if (qs[strRun] == "AND" || qs[strRun] == "OR") {
 					bq_type = qs[strRun] == "AND" ? 2 : qs[strRun] == "OR" ? 1 : undefined;
 					continue;
 				}
+				console.log("return");
 
-				// the next step is constanly adding to cmp if none of the above happen
-				cmp.push(grabDocs(qs[strRun]));
 
 				// at this point we need to check bq_type,
 				// if it has a value, then we need to do something to the cmp,
@@ -122,9 +129,11 @@ function queryIndexer(query_string, stopwords, docWriter) {
 				// based on the generizability of the gate operations,
 				// we can throw whatever is inside of cmp into there
 
-				if (bq_type == 2)
+				console.log("\npre gate", cmp);
+				if (bq_type == 2) {
 					cmp = [arrAndGate(cmp)];
-				else if (bq_type == 1)
+					console.log("post", cmp);
+				} else if (bq_type == 1)
 					cmp = [arrOrGate(cmp)];
 			}
 			return cmp;
@@ -170,5 +179,71 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 	});
 }
 
-findQueries("/media/hotboy/DUMP/myIndex.dat", `./myQueries.dat`, `./myStopWords.dat`, `./myDocs.dat`);
+//findQueries("/media/hotboy/DUMP/myIndex.dat", `./myQueries.dat`, `./myStopWords.dat`, `./myDocs.dat`);
 // console.log(queryIndexer("(spACE AND odyssey{}) OR orange", "./myStopWords.dat"));;
+
+function makeQuery(qString, startLeft, startRight) {
+	console.log(qString.length, qString);
+
+	let meta = [];
+	let pointers = [startLeft ? startLeft : Math.floor(qString.length * 0.5),
+		startRight ? startRight : Math.floor(qString.length * 0.5) + 1
+	];
+
+	while (qString[pointers[0]] != " " || qString[pointers[1]] != " ") {
+		pointers[0] -= qString[pointers[0]] != " " ? 1 : 0;
+		pointers[1] += qString[pointers[1]] != " " ? 1 : 0;
+	}
+
+	console.log(pointers, qString.substring(pointers[0], pointers[1]));
+	/* cases:
+		( - for right side, need to go into a sub process
+			for left side, closing some process
+		) - for right side, closing some process,
+			for left side, need to go into a sub process
+		AND - do nothing
+		OR - add a ")" on left side, add a "(" on right side, both sides then
+			 need to find an appropriate closing place
+		otherwise - adding a word (after stemming and lowercasing) into meta
+	*/
+	let ans = qString.substring(pointers[0], pointers[1]);
+	//if ()
+}
+
+function cleanQuery(string, stopwords) {
+	let pre = 0;
+	for (let run = 0; run < string.length; run++) {
+
+		if (string[run] == " " || string[run] == "\n" || string[run] == "\n" || string[run] == ")") {
+			// let's take a look at what the word inside of here is:
+			let word = string.substring(pre == 0 ? 0 : pre + 1, run);
+
+			// if the word is AND or OR, we want to ignore it,
+			// otherwise we need to lowercase, remove if stopword, and stem
+			if (word == "AND" || word == "OR") {
+				pre = run;
+			} else {
+				word = word.toLowerCase();
+
+				stopwords.forEach(w => {
+					word = word == w ? "" : word;
+				});
+
+				let updateWord = stemmer(word);
+				string = string.substring(0, pre == 0 ? 0 : pre + 1) + updateWord + string.substring(run, string.length);
+				run += updateWord.length - word.length;
+				pre = run;
+			}
+		}
+
+		if (string[run] == "(" || string[run] == ")") {
+			let addString = string[run] == "(" ? "( " : " )";
+			string = string.substring(0, run) + addString + string.substring(run + 1, string.length);
+			run++;
+			pre = run;
+		}
+	}
+	console.log(string);
+}
+
+cleanQuery("(space OR (oddyssey AND orange) AND (banana OR pea AND fruit))", fs.readFileSync('./myStopWords.dat', 'utf8').split("\n"));
