@@ -13,6 +13,8 @@ function grabDocs(word) {
 	let docs = [];
 
 	let page_docs = pages[word];
+	if (!page_docs)
+		return [];
 	for (let i = 0; i < page_docs.length; i++) {
 		docs.push(page_docs[i][0]);
 	}
@@ -22,21 +24,19 @@ function grabDocs(word) {
 
 function queryIndexer(query_string, stopwords, docWriter) {
 	// first determine the type of query string:
-	// OWQ if query_string.split(" ").length == 1
-	// BQ if query_string CONTAINS "AND" or "OR"
-	// PQ if query_string is wrapped in quotes
-	// FTQ otherwise
+	// 0: OWQ if query_string.split(" ").length == 1
+	// 1: BQ if query_string CONTAINS "AND" or "OR"
+	// 2: PQ if query_string is wrapped in quotes
+	// 3: FTQ otherwise
 
 	let query_type = query_string.indexOf(" ") == -1 ? 0 :
 		query_string.includes("AND") || query_string.includes("OR") ? 1 :
 		query_string[0] == "\"" && query_string[query_string.length - 1] == "\"" ? 2 : 3;
 
-	let qStrings = cleanQuery(query_string, stopwords);
+	let qStrings = cleanQuery(query_string, stopwords, query_type);
 	if (query_type == 1)
 		makeBQQuery(qStrings, 0, qStrings.length - 1);
-
-	// now with the finished array we can compare to our pages
-	let comparitives = [];
+	console.log(qStrings);
 
 	/*
 		for finding documents, we will need first just a normal array,
@@ -47,9 +47,9 @@ function queryIndexer(query_string, stopwords, docWriter) {
 			if there are any parentheses, we will need to construct a sub array
 			to work through those sub problems of the query first
 	*/
-	if (query_type == 1) {
-		function findComparatives(qs, cmp, start) {
-			let bq_type;
+	if (query_type == 0 || query_type == 1 || query_type == 3) {
+		function findComparatives(qs, start) {
+			let bq_type, cmp = [];
 			for (let strRun = start; strRun < qs.length; strRun++) {
 				// if we find a close parenthesis, we want to end our current level:
 				if (qs[strRun] == ")")
@@ -58,7 +58,7 @@ function queryIndexer(query_string, stopwords, docWriter) {
 				// our second thing we look for is open parentheses, if we see one,
 				// we want to go into a sub findComparatives
 				if (qs[strRun] == "(") {
-					let cmpRe = findComparatives(qs, [], strRun + 1);
+					let cmpRe = findComparatives(qs, strRun + 1);
 					if (cmpRe[0].length)
 						cmp.push(cmpRe[0][0]);
 					else if (!cmpRe[0].length)
@@ -87,8 +87,7 @@ function queryIndexer(query_string, stopwords, docWriter) {
 			}
 			return cmp;
 		}
-		console.log(qStrings);
-		console.log(findComparatives(qStrings, comparitives, 0));
+		docWriter.write(`${query_string} => ${findComparatives(qStrings, 0)}\n`)
 	}
 }
 
@@ -198,7 +197,7 @@ function BQpartition(qString, low, pivot) {
 	return lowest[0];
 }
 
-function cleanQuery(string, stopwords) {
+function cleanQuery(string, stopwords, query_type) {
 	let pre = 0;
 	for (let run = 0; run < string.length + 1; run++) {
 
@@ -219,8 +218,11 @@ function cleanQuery(string, stopwords) {
 				});
 
 				let updateWord = stemmer(word);
-				string = string.substring(0, pre == 0 ? 0 : pre + 1) + updateWord + string.substring(run, string.length);
-				run += updateWord.length - word.length;
+				// SPECIAL CASE: if query_type is 3 (free text), we need to add an "OR"
+				// between each word
+				string = string.substring(0, pre == 0 ? 0 : pre + 1) + 
+					updateWord + (query_type == 3 && run < string.length ? " OR" : "") + string.substring(run, string.length);
+				run += (updateWord.length - word.length) + (query_type == 3 && run < string.length ? 3 : 0);
 				pre = run;
 			}
 		}
