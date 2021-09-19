@@ -144,24 +144,39 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 function makeBQQuery(qString, low, high) {
 	if (low < high) {
 		let pivot = BQpartition(qString, low, high);
-		if (pivot[0] < low)
+		if (pivot < low)
 			return;
 
 		// if pivot is a value, we want to put parentheses on both sides, aka:
 		// go from ["banana", "OR", "apple"] to
 		// ["(", "banana", ")", "OR", "(", "apple", ")"]
-		qString.splice(high + 1, 0, ")");
-		qString.splice(pivot[0] + 1, 0, "(");
-		qString.splice(pivot[0], 0, ")");
-		qString.splice(low, 0, "(");
 
-		high += 4;
-		pivot[0] += 2;
+		// BUT there is some times when we don't want to add on one side, say:
+		// ["apple", "OR", "(", "tree", "AND", "plant", "("]
+		// since the parentheses are already there, we don't want to add extras:
 
-		makeBQQuery(qString, pivot[0] + 1, high); // high side
-		makeBQQuery(qString, low, pivot[0] - 1); // low side
+		let lower = 0, higher = 0;
+		if (!(qString[pivot + 1] == "(" && qString[high] == ")")) {
+			qString.splice(high + 1, 0, ")"); // high side
+			qString.splice(pivot + 1, 0, "("); // high side
+
+			higher = 2;
+		}
+
+		if (!(qString[pivot - 1] == ")" && qString[low] == "(")) {
+			qString.splice(pivot, 0, ")"); // low side
+			qString.splice(low, 0, "("); // low side
+
+			lower = 2;
+		}
+
+		high += lower + higher;
+		pivot += lower;
+
+		makeBQQuery(qString, pivot + 1, high); // high side
+		makeBQQuery(qString, low, pivot - 1); // low side
 	}
-	console.log(qString);
+	return qString;
 }
 
 function BQpartition(qString, low, pivot) {
@@ -184,11 +199,11 @@ function BQpartition(qString, low, pivot) {
 		}
 	}
 
-	return lowest;
+	return lowest[0];
 }
 
 let arr = ["(", "space", "OR", "(", "odyssei", "OR", "green", "AND", "bean", ")", ")", "OR", "potato", "AND", "chicken"];
-makeBQQuery(arr, 0, arr.length - 1);
+console.log(makeBQQuery(arr, 0, arr.length - 1));
 //makeBQQuery(["space", "AND", "odyssei"], 0, 2);
 
 // if (qString[j] == "(" && !close) {
