@@ -31,54 +31,7 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		query_string.includes("AND") || query_string.includes("OR") ? 1 :
 		query_string[0] == "\"" && query_string[query_string.length - 1] == "\"" ? 2 : 3;
 
-	query_string = query_string.replace(/[^a-zA-Z0-9"() ]/g, "");
-
-	let BQ_amount = 0,
-		qStrings = [];
-	let pre = 0;
-	for (let run = 0; run < query_string.length + 1; run++) {
-		if (query_type == 1 && (query_string[run + 2] == "D" &&
-				query_string[run + 1] == "N" && query_string[run] == "A")) {
-			qStrings.push("AND");
-			// if we find an AND, we need to also add a "(" to the item previous
-			// to it, and then after the next item as well
-			// ^ the next item is troublesome, because if there's a "("
-			// after it, then we need to wait until ")"
-			BQ_amount++;
-			run += 3;
-			pre = run;
-			continue;
-		}
-
-		if (query_type == 1 && (query_string[run] == "O" &&
-				query_string[run + 1] == "R")) {
-			qStrings.push(query_string[run] + query_string[run + 1]);
-			BQ_amount++;
-			run += 2;
-			pre = run;
-			continue;
-		}
-
-		if ((query_string[run] == " " || query_string[run] == undefined ||
-				query_string[run] == ")") && pre < run) {
-			qStrings.push(stemmer(query_string.substring(pre, run).toLowerCase().replace(/[( ]/g, "")));
-			pre = run + 1;
-		}
-
-		if (query_type == 1 && (query_string[run] == "(" ||
-				query_string[run] == ")")) {
-			qStrings.push(query_string[run]);
-			BQ_amount++;
-		}
-	}
-
-	query_string = query_string.toLowerCase();
-
-	// obtained tokens from the stream
-	// filter stop words:
-	stopwords.forEach(stop => {
-		query_string = stop.length ? query_string.replace(new RegExp(`(\\s+)${stop}(\\s+)`, "g"), " ") : query_string;
-	});
+	let qStrings = cleanQuery(query_string);
 
 	// now with the finished array we can compare to our pages
 	let comparitives = [];
@@ -183,8 +136,6 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 // console.log(queryIndexer("(spACE AND odyssey{}) OR orange", "./myStopWords.dat"));;
 
 function makeQuery(qString, startLeft, startRight) {
-	console.log(qString.length, qString);
-
 	let meta = [];
 	let pointers = [startLeft ? startLeft : Math.floor(qString.length * 0.5),
 		startRight ? startRight : Math.floor(qString.length * 0.5) + 1
@@ -212,9 +163,9 @@ function makeQuery(qString, startLeft, startRight) {
 
 function cleanQuery(string, stopwords) {
 	let pre = 0;
-	for (let run = 0; run < string.length; run++) {
+	for (let run = 0; run < string.length + 1; run++) {
 
-		if (string[run] == " " || string[run] == "\n" || string[run] == "\n" || string[run] == ")") {
+		if (string[run] == " " || string[run] == "\n" || string[run] == "\t" || string[run] == ")" || string[run] == undefined) {
 			// let's take a look at what the word inside of here is:
 			let word = string.substring(pre == 0 ? 0 : pre + 1, run);
 
@@ -224,6 +175,7 @@ function cleanQuery(string, stopwords) {
 				pre = run;
 			} else {
 				word = word.toLowerCase();
+				word = word.replace(/[^a-z0-9]/g, "");
 
 				stopwords.forEach(w => {
 					word = word == w ? "" : word;
@@ -236,14 +188,16 @@ function cleanQuery(string, stopwords) {
 			}
 		}
 
-		if (string[run] == "(" || string[run] == ")") {
-			let addString = string[run] == "(" ? "( " : " )";
+		if (string[run] == "(" || string[run] == ")" || string[run] == "\"") {
+			let addString = string[run] == "(" ? "( " : string[run] == ")" ? " )" : 
+			((string[run - 1] == " " || string[run - 1] == undefined) ? "\" " : " \"");
 			string = string.substring(0, run) + addString + string.substring(run + 1, string.length);
 			run++;
 			pre = run;
 		}
 	}
-	console.log(string);
+
+	return string.split(" ");
 }
 
-cleanQuery("(space OR (oddyssey AND orange) AND (banana OR pea AND fruit))", fs.readFileSync('./myStopWords.dat', 'utf8').split("\n"));
+console.log(cleanQuery("\"space oddyssey\"", fs.readFileSync('./myStopWords.dat', 'utf8').split("\n")));
