@@ -31,10 +31,15 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		query_string.includes("AND") || query_string.includes("OR") ? 1 :
 		query_string[0] == "\"" && query_string[query_string.length - 1] == "\"" ? 2 : 3;
 
-	let qStrings = cleanQuery(query_string);
+	let qStrings = cleanQuery(query_string, stopwords);
+	if (query_type == 1) {
+		console.log(makeBQQuery(qStrings));
+	}
 
 	// now with the finished array we can compare to our pages
 	let comparitives = [];
+
+	//return;
 	/*
 		for finding documents, we will need first just a normal array,
 		as we go through each term in the query, we will also check
@@ -92,7 +97,8 @@ function queryIndexer(query_string, stopwords, docWriter) {
 			return cmp;
 		}
 		console.log(qStrings);
-		console.log(findComparatives(qStrings, comparitives, 0));
+		console.log("\nRETURNED?", findComparatives(["space", "OR", "(", "orang", ")"], 0))
+		// console.log(findComparatives(qStrings, comparitives, 0));
 	}
 }
 
@@ -135,31 +141,70 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 //findQueries("/media/hotboy/DUMP/myIndex.dat", `./myQueries.dat`, `./myStopWords.dat`, `./myDocs.dat`);
 // console.log(queryIndexer("(spACE AND odyssey{}) OR orange", "./myStopWords.dat"));;
 
-function makeQuery(qString, startLeft, startRight) {
-	let meta = [];
-	let pointers = [startLeft ? startLeft : Math.floor(qString.length * 0.5),
-		startRight ? startRight : Math.floor(qString.length * 0.5) + 1
-	];
+function makeBQQuery(qString, low, high) {
+	if (low < high) {
+		let pivot = BQpartition(qString, low, high);
+		if (pivot[0] < low)
+			return;
 
-	while (qString[pointers[0]] != " " || qString[pointers[1]] != " ") {
-		pointers[0] -= qString[pointers[0]] != " " ? 1 : 0;
-		pointers[1] += qString[pointers[1]] != " " ? 1 : 0;
+		// if pivot is a value, we want to put parentheses on both sides, aka:
+		// go from ["banana", "OR", "apple"] to
+		// ["(", "banana", ")", "OR", "(", "apple", ")"]
+		qString.splice(high + 1, 0, ")");
+		qString.splice(pivot[0] + 1, 0, "(");
+		qString.splice(pivot[0], 0, ")");
+		qString.splice(low, 0, "(");
+
+		high += 4;
+		pivot[0] += 2;
+
+		makeBQQuery(qString, pivot[0] + 1, high); // high side
+		makeBQQuery(qString, low, pivot[0] - 1); // low side
+	}
+	console.log(qString);
+}
+
+function BQpartition(qString, low, pivot) {
+	// a partition point would be either an OR, or it would be on the right side of
+	// a ")" or on the left side of an "("
+	let close = 0;
+	let lowest = [low - 1, Infinity];
+	// lowest contains a position and a close level, which corresponds
+	// to what level of "depth" we have of parentheses, the lowest the
+	// close value the higher likelihood hood of being chosen
+
+	for (let j = low; j < pivot; j++) {
+		if (qString[j] == "(")
+			close++;
+		else if (qString[j] == ")")
+			close--;
+
+		if (qString[j] == "OR" && close < lowest[1]) {
+			lowest = [j, close];
+		}
 	}
 
-	console.log(pointers, qString.substring(pointers[0], pointers[1]));
-	/* cases:
-		( - for right side, need to go into a sub process
-			for left side, closing some process
-		) - for right side, closing some process,
-			for left side, need to go into a sub process
-		AND - do nothing
-		OR - add a ")" on left side, add a "(" on right side, both sides then
-			 need to find an appropriate closing place
-		otherwise - adding a word (after stemming and lowercasing) into meta
-	*/
-	let ans = qString.substring(pointers[0], pointers[1]);
-	//if ()
+	return lowest;
 }
+
+let arr = ["(", "space", "OR", "(", "odyssei", "OR", "green", "AND", "bean", ")", ")", "OR", "potato", "AND", "chicken"];
+makeBQQuery(arr, 0, arr.length - 1);
+//makeBQQuery(["space", "AND", "odyssei"], 0, 2);
+
+// if (qString[j] == "(" && !close) {
+// 			lowest = j;
+// 			// in this case we then need to find the close
+// 			close = 1;
+// 		} else if (qString[j] == "(" && close)
+// 			close++;
+
+// 		if (qString[j] == ")" && close == 1) {
+// 			// we found our close parenthesis
+// 			// at this point we want to look at the value right after it
+// 			lowest = j + 1;
+// 			break;
+// 		} else if (qString[j] == ")" && close > 1)
+// 			close--;
 
 function cleanQuery(string, stopwords) {
 	let pre = 0;
@@ -189,8 +234,8 @@ function cleanQuery(string, stopwords) {
 		}
 
 		if (string[run] == "(" || string[run] == ")" || string[run] == "\"") {
-			let addString = string[run] == "(" ? "( " : string[run] == ")" ? " )" : 
-			((string[run - 1] == " " || string[run - 1] == undefined) ? "\" " : " \"");
+			let addString = string[run] == "(" ? "( " : string[run] == ")" ? " )" :
+				((string[run - 1] == " " || string[run - 1] == undefined) ? "\" " : " \"");
 			string = string.substring(0, run) + addString + string.substring(run + 1, string.length);
 			run++;
 			pre = run;
@@ -200,4 +245,4 @@ function cleanQuery(string, stopwords) {
 	return string.split(" ");
 }
 
-console.log(cleanQuery("\"space oddyssey\"", fs.readFileSync('./myStopWords.dat', 'utf8').split("\n")));
+//console.log(cleanQuery("\"space oddyssey\"", fs.readFileSync('./myStopWords.dat', 'utf8').split("\n")));
