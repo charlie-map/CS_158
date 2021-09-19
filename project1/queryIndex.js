@@ -35,12 +35,9 @@ function queryIndexer(query_string, stopwords, docWriter) {
 	if (query_type == 1)
 		makeBQQuery(qStrings, 0, qStrings.length - 1);
 
-	console.log(qStrings);
-
 	// now with the finished array we can compare to our pages
 	let comparitives = [];
 
-	return;
 	/*
 		for finding documents, we will need first just a normal array,
 		as we go through each term in the query, we will also check
@@ -56,29 +53,24 @@ function queryIndexer(query_string, stopwords, docWriter) {
 			for (let strRun = start; strRun < qs.length; strRun++) {
 				// if we find a close parenthesis, we want to end our current level:
 				if (qs[strRun] == ")")
-					return cmp;
+					return [cmp, strRun];
 
 				// our second thing we look for is open parentheses, if we see one,
 				// we want to go into a sub findComparatives
-				console.log(qs[strRun]);
 				if (qs[strRun] == "(") {
-					let cmpRe = findComparatives(qs, [], strRun + 1)[0];
-					console.log("sub problem?", cmpRe);
-					if (cmpRe.length)
-						cmp.push(cmpRe);
-					console.log(cmp, bq_type);
-					strRun = qs.indexOf(")", strRun) + 1;
-				} else {
-					// the next step is constanly adding to cmp if none of the above happen
-					console.log(qs[strRun]);
-					cmp.push(grabDocs(qs[strRun]));
-				}
-
-				if (qs[strRun] == "AND" || qs[strRun] == "OR") {
+					let cmpRe = findComparatives(qs, [], strRun + 1);
+					if (cmpRe[0].length)
+						cmp.push(cmpRe[0][0]);
+					else if (!cmpRe[0].length)
+						cmp.push(cmpRe[0]);
+					strRun = cmpRe[1]
+				} else if (qs[strRun] == "AND" || qs[strRun] == "OR") {
 					bq_type = qs[strRun] == "AND" ? 2 : qs[strRun] == "OR" ? 1 : undefined;
 					continue;
+				} else {
+					// the next step is constanly adding to cmp if none of the above happen
+					cmp.push(grabDocs(qs[strRun]));
 				}
-				console.log("return");
 
 
 				// at this point we need to check bq_type,
@@ -88,18 +80,15 @@ function queryIndexer(query_string, stopwords, docWriter) {
 				// based on the generizability of the gate operations,
 				// we can throw whatever is inside of cmp into there
 
-				console.log("\npre gate", cmp);
 				if (bq_type == 2) {
 					cmp = [arrAndGate(cmp)];
-					console.log("post", cmp);
 				} else if (bq_type == 1)
 					cmp = [arrOrGate(cmp)];
 			}
 			return cmp;
 		}
 		console.log(qStrings);
-		console.log("\nRETURNED?", findComparatives(["space", "OR", "(", "orang", ")"], 0))
-		// console.log(findComparatives(qStrings, comparitives, 0));
+		console.log(findComparatives(qStrings, comparitives, 0));
 	}
 }
 
