@@ -167,16 +167,16 @@ function deserializeObject(input_file, half_doneOBJ) {
 		word, doc_id, position;
 
 	for (let find_str = 0; find_str < input_file.length; find_str++) {
-		word = input_file[find_str] == "\n" ? null : word;
-		doc_id = input_file[find_str] == "\n" || input_file[find_str] == ";" ? null : doc_id;
-		position = input_file[find_str] == "\n" || input_file[find_str] == ";" ? null : position;
+		word = input_file[find_str] == "\n" ? undefined : word;
+		doc_id = input_file[find_str] == ";" || input_file[find_str] == "\n" ? undefined : doc_id;
+		//position = input_file[find_str] == "," || input_file[find_str] == ";" || input_file[find_str] == "\n" ? undefined : position;
 
 		if (input_file[find_str] == "\n" || input_file[find_str] == ";")
 			continue;
 
 		// we know we start with the word:
 		let end_index;
-		if (!word) {
+		if (word == undefined) {
 			end_index = input_file.indexOf("|", find_str);
 			word = input_file.substring(find_str, end_index);
 			find_str += end_index - find_str + 1;
@@ -185,58 +185,24 @@ function deserializeObject(input_file, half_doneOBJ) {
 		}
 
 		// then start adding documents:
-		if (!doc_id) {
+		if (doc_id == undefined) {
 			end_index = input_file.indexOf(":", find_str);
 			doc_id = parseInt(input_file.substring(find_str, end_index), 10);
 			newOBJ[word].push([doc_id, []])
 			find_str += end_index - find_str + 1;
 		}
 
-		if (!position) {
+		if (position == undefined) {
 			end_index = input_file.indexOf(",", find_str);
 			position = parseInt(input_file.substring(find_str, end_index), 10);
 			newOBJ[word][newOBJ[word].length - 1][1].push(position);
+			position = undefined;
 			find_str += end_index - find_str;
 		}
 	}
 
 	return newOBJ;
 }
-
-// serializeObject("./myIndex.dat", {
-// 	"cat": {
-// 		skiplist: {
-// 			values: [
-// 				[{
-// 					value: 2,
-// 					documents: [5, 10, 88]
-// 				}, {
-// 					value: Infinity
-// 				}]
-// 			]
-// 		}
-// 	},
-// 	"dog": {
-// 		skiplist: {
-// 			values: [
-// 				[{
-// 					value: 4,
-// 					documents: [20, 4]
-// 				}, {
-// 					value: 10,
-// 					documents: [45, 69]
-// 				}, {
-// 					value: 40,
-// 					documents: [10, 45, 32465]
-// 				}, {
-// 					value: Infinity
-// 				}]
-// 			]
-// 		}
-// 	}
-// });
-
-//console.log(deserializeObject(fs.readFileSync(`/media/hotboy/DUMP/myIndex.dat`).toString(), {} /* above code for example */));
 
 module.exports = {
 	arrAndGate,

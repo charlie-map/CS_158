@@ -9,14 +9,17 @@ const {
 let pages;
 // declaring globally for use through multiple functions
 
-function grabDocs(word) {
+function grabDocs(word, needPos) {
 	let docs = [];
 
 	let page_docs = pages[word];
 	if (!page_docs)
 		return [];
 	for (let i = 0; i < page_docs.length; i++) {
-		docs.push(page_docs[i][0]);
+		if (needPos)
+			docs.push(page_docs[i]);
+		else
+			docs.push(page_docs[i][0]);
 	}
 
 	return docs;
@@ -36,7 +39,6 @@ function queryIndexer(query_string, stopwords, docWriter) {
 	let qStrings = cleanQuery(query_string, stopwords, query_type);
 	if (query_type == 1)
 		makeBQQuery(qStrings, 0, qStrings.length - 1);
-	console.log(qStrings);
 
 	/*
 		for finding documents, we will need first just a normal array,
@@ -88,6 +90,19 @@ function queryIndexer(query_string, stopwords, docWriter) {
 			return cmp;
 		}
 		docWriter.write(`${query_string} => ${findComparatives(qStrings, 0)}\n`)
+	} else {
+		// with phrase queries, we need to document positions as well, so
+		// for that we will also have a second parameter for grabDocs:
+		// grabDocs("word", true); to emphasize that we need positions connected
+
+		console.log(qStrings);
+
+		let prevWord = [];
+		for (let word = 1; word < qStrings.length - 1; word++) {
+			let currWord = grabDocs(qStrings[word], true);
+			console.log("looking for doc?", qStrings[word], currWord);
+		}
+
 	}
 }
 
@@ -127,7 +142,7 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 	});
 }
 
-findQueries("/media/hotboy/DUMP/myIndex.dat", `./myQueries.dat`, `./myStopWords.dat`, `./myDocs.dat`);
+//findQueries("/media/hotboy/DUMP/myIndex.dat", `./myQueries.dat`, `./myStopWords.dat`, `./myDocs.dat`);
 // console.log(queryIndexer("(spACE AND odyssey{}) OR orange", "./myStopWords.dat"));;
 
 function makeBQQuery(qString, low, high) {
@@ -197,46 +212,78 @@ function BQpartition(qString, low, pivot) {
 	return lowest[0];
 }
 
+function normalChar(char) {
+	if (!char)
+		return;
+	char = char.charCodeAt(0);
+	return (char >= 48 && char <= 57) || (char >= 65 && char <= 90) || (char >= 97 && char <= 122);
+}
+
 function cleanQuery(string, stopwords, query_type) {
 	let pre = 0;
 	for (let run = 0; run < string.length + 1; run++) {
 
-		if (string[run] == " " || string[run] == "\n" || string[run] == "\t" || string[run] == ")" || string[run] == undefined) {
-			// let's take a look at what the word inside of here is:
-			let word = string.substring(pre == 0 ? 0 : pre + 1, run);
+		// first case: we have an open something, and we need to make sure it's not a normal character before
+		if ((string[run] == "(" || (string[run] == "\"" && !normalChar(string[run - 1]))) &&
+			string[run + 1] != " " /*special case for making sure there's not already a space*/) {
 
-			// if the word is AND or OR, we want to ignore it,
-			// otherwise we need to lowercase, remove if stopword, and stem
-			if (word == "AND" || word == "OR") {
-				pre = run;
-			} else {
-				word = word.toLowerCase();
-				word = word.replace(/[^a-z0-9]/g, "");
+			string = string.substring(0, run) + string[run] + " " + string.substring(run + 1, string.length);
 
-				stopwords.forEach(w => {
-					word = word == w ? "" : word;
-				});
-
-				let updateWord = stemmer(word);
-				// SPECIAL CASE: if query_type is 3 (free text), we need to add an "OR"
-				// between each word
-				string = string.substring(0, pre == 0 ? 0 : pre + 1) + 
-					updateWord + (query_type == 3 && run < string.length ? " OR" : "") + string.substring(run, string.length);
-				run += (updateWord.length - word.length) + (query_type == 3 && run < string.length ? 3 : 0);
-				pre = run;
-			}
+			run += 2;
+			pre = run;
 		}
 
-		if (string[run] == "(" || string[run] == ")" || string[run] == "\"") {
-			let addString = string[run] == "(" ? "( " : string[run] == ")" ? " )" :
-				((string[run - 1] == " " || string[run - 1] == undefined) ? "\" " : " \"");
-			string = string.substring(0, run) + addString + string.substring(run + 1, string.length);
-			run++;
-			pre = run;
+		// second case: looking for a word, if there's some unknown character, we still want the word:
+		if (string[run] == " " || string[run] == ")" || string[run] == "\"") {
+
+			// along with this, if the character we run into is actually a ")" or "\"", we want to keep it
+			// just move it out of our way:
+
+			let realCharEnd = false;
+
+			if (string[run] == ")" || string[run] == "\"") {
+				string = string.substring(0, run) + " " + string[run] + string.substring(run + 1, string.length);
+				realCharEnd = true;
+			}
+
+			// now that we've put some space in there, we can continue working:
+			let word = string.substring(pre, run);
+
+			// CASE: if the word is OR or AND, just skip past it:
+			if (word == "AND" || word == "OR") {
+				pre = run + 1;
+				continue;
+			}
+
+			let nWord = stemmer(word.toLowerCase().replace(/[^a-z0-9]/g, ""));
+
+			let isStopword = false;
+			// then stopwords:
+			stopwords.forEach(w => {
+				if (w == nWord)
+					isStopword = true;
+			});
+
+			// we now decide on what to do with this information:
+
+			// if it's a stopword, we need to go ahead and remove it totally and move run accordingly:
+			if (isStopword) {
+				// we just want to fully remove the word
+				string = string.substring(0, pre) + string.substring(run, string.length);
+				run = (run - word.length) + (realCharEnd ? 2 : 0);
+			} else {
+				// otherwise we are going to add the cleaned word into its place:
+				string = string.substring(0, pre) + nWord + string.substring(run, string.length);
+
+				// remove any length lost from stemming:
+				run -= word.length - nWord.length;
+
+				if (realCharEnd)
+					run+= 2;
+				pre = run + 1;
+			}
 		}
 	}
 
 	return string.split(" ");
 }
-
-//console.log(cleanQuery("\"space oddyssey\"", fs.readFileSync('./myStopWords.dat', 'utf8').split("\n")));
