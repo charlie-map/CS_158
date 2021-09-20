@@ -95,12 +95,74 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		// for that we will also have a second parameter for grabDocs:
 		// grabDocs("word", true); to emphasize that we need positions connected
 
-		console.log(qStrings);
-
-		let prevWord = [];
+		let prevWord;
 		for (let word = 1; word < qStrings.length - 1; word++) {
-			let currWord = grabDocs(qStrings[word], true);
-			console.log("looking for doc?", qStrings[word], currWord);
+			let currDoc = grabDocs(qStrings[word], true);
+			let pointers = [0, 0];
+			let innerPoint = [0, 0];
+
+			// if we haven't encountered any words yet, skip the main process
+			// and just add to previous word:
+			console.log(currDoc);
+			if (!prevWord) {
+				prevWord = {
+					name: qStrings[word],
+					docs: currDoc
+				};
+				continue;
+			}
+
+			// otherwise we start actually comparing the documents
+			// we're first going to drop any unrelated documents:
+			let checkDocs;
+			for (checkDocs = 0; checkDocs < prevWord.docs.length > currDoc.length ? prevWord.docs.length : currDoc.length; checkDocs++) {
+
+				let notEnd = true;
+				while (notEnd) {
+					if (prevWord.docs[pointers[1]][0] > currDoc[pointers[0]][0])
+						pointers[0]++;
+					else if (prevWord.docs[pointers[1]][0] < currDoc[pointers[0]][0])
+						pointers[1]++;
+
+					if (!prevWord.docs[pointers[1]] || !currDoc[pointers[0]]) {
+						notEnd = false;
+						break;
+					}
+
+					if (prevWord.docs[pointers[1]][0] == currDoc[pointers[0]][0]) {
+						// we've found a matching document, at this point, check the positions
+						// for about (room for a bit of error [possibly less than 5?]) right next to each other
+
+						let prevPos = prevWord.docs[pointers[1]][1];
+						let currPos = currDoc[pointers[0]][1];
+
+						console.log(prevPos, currPos);
+
+						while (Math.abs((prevPos[innerPoint[1]] + prevWord.name.length) - currPos[innerPoint[0]]) > 5) {
+							console.log(innerPoint, prevPos[innerPoint[1]] + prevWord.name.length, currPos[innerPoint[0]]);
+
+							if (prevPos[innerPoint[1]] + prevWord.name.length > currPos[innerPoint[0]])
+								innerPoint[0]++;
+							else if (prevPos[innerPoint[1]] + prevWord.name.length < currPos[innerPoint[0]])
+								innerPoint[1] += 1;
+
+							if (!prevPos[innerPoint[1]] || !prevPos[innerPoint[1]])
+								break;
+						}
+
+						// if we reach here, we know we're in the zone!
+						// we want to go ahead and end the outer loop now
+						break;
+					}
+				}
+
+				console.log("found?", notEnd, prevWord.docs[pointers[1]][1], currDoc[pointers[0]][1]);
+				if (Math.abs((prevWord.docs[pointers[1]][1][innerPoint[1]] + prevWord.name.length) - currDoc[pointers[0]][1][innerPoint[0]]) < 5) {
+					// if they do match, we want to keep checking this strand
+				}
+			}
+
+			console.log("premature?", checkDocs);
 		}
 
 	}
@@ -142,7 +204,7 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 	});
 }
 
-//findQueries("/media/hotboy/DUMP/myIndex.dat", `./myQueries.dat`, `./myStopWords.dat`, `./myDocs.dat`);
+findQueries("/media/hotboy/DUMP/myIndex.dat", `./myQueries.dat`, `./myStopWords.dat`, `./myDocs.dat`);
 // console.log(queryIndexer("(spACE AND odyssey{}) OR orange", "./myStopWords.dat"));;
 
 function makeBQQuery(qString, low, high) {
@@ -225,7 +287,7 @@ function cleanQuery(string, stopwords, query_type) {
 
 		// first case: we have an open something, and we need to make sure it's not a normal character before
 		if ((string[run] == "(" || (string[run] == "\"" && !normalChar(string[run - 1]))) &&
-			string[run + 1] != " " /*special case for making sure there's not already a space*/) {
+			string[run + 1] != " " /*special case for making sure there's not already a space*/ ) {
 
 			string = string.substring(0, run) + string[run] + " " + string.substring(run + 1, string.length);
 
@@ -279,7 +341,7 @@ function cleanQuery(string, stopwords, query_type) {
 				run -= word.length - nWord.length;
 
 				if (realCharEnd)
-					run+= 2;
+					run += 2;
 				pre = run + 1;
 			}
 		}
