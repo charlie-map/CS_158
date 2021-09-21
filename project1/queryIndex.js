@@ -25,10 +25,26 @@ function grabDocs(word, needPos) {
 	return docs;
 }
 
-function findMatch(pos, range, array) {
+function findMatch(pos, range, wordLen, array, low, high) {
+	low = low == undefined ? 0 : low;
+	high = high == undefined ? array.length : high;
+	if (low > high)
+		return array[low] - wordLen <= pos + range && array[low] - wordLen >= pos - range;
 
 	// search the array for the pos:
-	
+	// find middle:
+	let mid = Math.floor((low + high) * 0.5);
+
+	// check middle for if we should go higher or lower:
+	if (array[mid] - wordLen <= pos + range && array[mid] - wordLen >= pos - range) {
+		// we're done!
+		return true;
+	} else {
+		// decide if we're lower or higher than our range:
+		let lower = array[mid] - wordLen < pos - range ? low : mid + 1;
+		let higher = array[mid] - wordLen > pos + range ? high : mid - 1;
+		return findMatch(pos, range, wordLen, array, lower, higher);
+	}
 }
 
 function isPhraseMatch(pointers, qStrings) {
@@ -57,22 +73,18 @@ function isPhraseMatch(pointers, qStrings) {
 	if (falsey)
 		return false; // there is no document pairs between our words
 
-	// then we need to check the position and compare
-	console.log("\nPRINT?");
-	for (let i = 1; i < qStrings.length - 1; i++) {
-		console.log(qStrings[i], pages[qStrings[i]][pointers[i - 1]]);
-	}
-
 	let currPage = pages[qStrings[1]][pointers[0]][1];
-	let isPair = true;
+	let isPair = true, buildWordLen;
 	for (let point = 0; point < currPage.length; point++) {
+		buildWordLen = 0;
 		let i;
-		for (i = 1; i < qStrings.length; i++) {
-			if (!findMatch(currPage[point], 5, pages[qStrings[i]][pointers[i]][1]));
+		for (i = 2; i < qStrings.length - 1; i++) {
+			buildWordLen += qStrings[i].length + 2; // for spaces
+			if (findMatch(currPage[point], 5, buildWordLen, pages[qStrings[i]][pointers[i - 1]][1]))
 				break;
 		}
 
-		if (i == qStrings.length) {
+		if (i != qStrings.length - 1) {
 			// we found one that worked! We can stop
 			isPair = true;
 			break;
@@ -153,24 +165,19 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		// for that we will also have a second parameter for grabDocs:
 		// grabDocs("word", true); to emphasize that we need positions connected
 
-		console.log("\n\n", qStrings);
-
 		let pointers = [-1],
 			metaDocs = [];
 		for (let word = 0; word < pages[qStrings[1]].length; word++) {
 			pointers[0]++;
 
-			if (qStrings[1] == "2001")
-				console.log("\t PRININTING AGAIN", pages[qStrings[1]], pointers[0]);
 			if (!pages[qStrings[1]][pointers[0]])
 				break;
 
 			if (isPhraseMatch(pointers, qStrings))
-				metaDocs.push(pages[qStrings[0]][pointers[0]][0]);
+				metaDocs.push(pages[qStrings[1]][pointers[0]][0]);
 		}
 
-		console.log(metaDocs);
-		//docWriter.write(`${query_string} => ${metaDocs}\n`);
+		docWriter.write(`${query_string} => ${metaDocs}\n`);
 	}
 }
 

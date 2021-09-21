@@ -1,0 +1,15 @@
+space => 0,2,3,8
+dog => 
+space odyssey => 0,2,3,8,12
+space AND odyssey => 0,3
+"space odyssey" => 0,3
+"2001: A Space Odyssey" => 0,3
+Space AND Odyssey AND Kubrik => 3
+"Full Metal Jacket" => 3,7
+"clockwork orange" => 9
+clockwork orange => 9,10
+"Killer's Kiss" => 4
+killer kiss => 4,5
+(space AND odyssey) OR orange => 0,3,9,10
+space OR (orange AND kiss) AND kubrik => 0,2,3,8
+(kiss AND killer) AND (danger OR full) => 4
