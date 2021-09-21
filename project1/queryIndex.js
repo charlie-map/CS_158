@@ -25,6 +25,64 @@ function grabDocs(word, needPos) {
 	return docs;
 }
 
+function findMatch(pos, range, array) {
+
+	// search the array for the pos:
+	
+}
+
+function isPhraseMatch(pointers, qStrings) {
+	// first find the document that checks off for all pointers,
+	// aka that the word occurs in that document
+
+	// we will loop based off of which pointer has the highest value:
+	let match = pages[qStrings[1]][pointers[0]][0],
+		falsey = false;
+	for (let find = 1; find < qStrings.length - 2; find++) {
+		if (pointers[find] == undefined)
+			pointers[find] = 0;
+
+		let currPage = pages[qStrings[find + 1]]
+
+		while (currPage[pointers[find]] && currPage[pointers[find]][0] < match) {
+			pointers[find]++;
+		}
+
+		if (currPage[pointers[find]] == undefined || currPage[pointers[find]][0] != match) { // if there's no value, break
+			falsey = true;
+			break;
+		}
+	}
+
+	if (falsey)
+		return false; // there is no document pairs between our words
+
+	// then we need to check the position and compare
+	console.log("\nPRINT?");
+	for (let i = 1; i < qStrings.length - 1; i++) {
+		console.log(qStrings[i], pages[qStrings[i]][pointers[i - 1]]);
+	}
+
+	let currPage = pages[qStrings[1]][pointers[0]][1];
+	let isPair = true;
+	for (let point = 0; point < currPage.length; point++) {
+		let i;
+		for (i = 1; i < qStrings.length; i++) {
+			if (!findMatch(currPage[point], 5, pages[qStrings[i]][pointers[i]][1]));
+				break;
+		}
+
+		if (i == qStrings.length) {
+			// we found one that worked! We can stop
+			isPair = true;
+			break;
+		} else
+			isPair = false;
+	}
+
+	return isPair;
+}
+
 function queryIndexer(query_string, stopwords, docWriter) {
 	// first determine the type of query string:
 	// 0: OWQ if query_string.split(" ").length == 1
@@ -97,25 +155,22 @@ function queryIndexer(query_string, stopwords, docWriter) {
 
 		console.log("\n\n", qStrings);
 
-		let prevWord;
-		for (let word = 1; word < qStrings.length - 1; word++) {
-			let currDoc = grabDocs(qStrings[word], true);
-			let pointers = [0, 0];
-			let innerPoint = [0, 0];
+		let pointers = [-1],
+			metaDocs = [];
+		for (let word = 0; word < pages[qStrings[1]].length; word++) {
+			pointers[0]++;
 
-			// if we haven't encountered any words yet, skip the main process
-			// and just add to previous word:
-			if (!prevWord) {
-				prevWord = {
-					name: qStrings[word],
-					docs: currDoc
-				};
-				continue;
-			}
+			if (qStrings[1] == "2001")
+				console.log("\t PRININTING AGAIN", pages[qStrings[1]], pointers[0]);
+			if (!pages[qStrings[1]][pointers[0]])
+				break;
 
-			console.log(prevWord, currDoc);
+			if (isPhraseMatch(pointers, qStrings))
+				metaDocs.push(pages[qStrings[0]][pointers[0]][0]);
 		}
 
+		console.log(metaDocs);
+		//docWriter.write(`${query_string} => ${metaDocs}\n`);
 	}
 }
 
@@ -286,8 +341,8 @@ function cleanQuery(string, stopwords, query_type) {
 				run = (run - word.length) + (realCharEnd ? 2 : 0);
 			} else {
 				// otherwise we are going to add the cleaned word into its place:
-				string = string.substring(0, pre) + 
-				nWord + (nWord.length && query_type == 3 ? " OR" : "") + string.substring(run, string.length);
+				string = string.substring(0, pre) +
+					nWord + (nWord.length && query_type == 3 ? " OR" : "") + string.substring(run, string.length);
 
 				// remove any length lost from stemming:
 				run -= word.length - nWord.length;
