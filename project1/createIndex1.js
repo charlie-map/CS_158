@@ -182,7 +182,4 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 }
 
 let stop_words = fs.readFileSync(`./myStopWords.dat`, 'utf8').split("\n");
-// /media/hotboy/DUMP/wikidatawiki-20210901-pages-articles-multistream7.xml-p6052572p7552571
-createIndex('./myCollection.dat', stop_words, './myTitles.dat');
-//createIndex(`/media/hotboy/DUMP/enwiki-20210901-pages-articles-multistream1.xml-p1p41242`, stop_words, `./myTitles.dat`);
-//createIndex(`/media/hotboy/DUMP/enwiki-20210901-pages-articles-multistream16.xml-p20460153p20570392`, stop_words, `./myTitles.dat`);
+createIndex('/media/hotboy/DUMP/enwiki-20210901-pages-articles-multistream16.xml-p20460153p20570392', stop_words, './myTitles.dat');
