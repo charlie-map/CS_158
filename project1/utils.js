@@ -178,7 +178,8 @@ function serializeObject(textfile, object, pageAmount) {
 function deserializeObject(input_file, half_doneOBJ, pageAmount) {
 	let start = !pageAmount && !half_doneOBJ ? input_file.indexOf("\n") : 0;
 	start = start == -1 ? 0 : start;
-	pageAmount = !pageAmount && !half_doneOBJ ? input_file.substring(0, start) : pageAmount;
+	pageAmount = !pageAmount && !half_doneOBJ ? parseInt(input_file.substring(2, start - 2), 10) : pageAmount;
+
 
 	// we are assuming the incoming file has the form:
 	/*
@@ -225,11 +226,10 @@ function deserializeObject(input_file, half_doneOBJ, pageAmount) {
 		}
 
 		if (tf == undefined) {
-			end_index = input_file.indexOf("", find_str);
+			end_index = input_file.indexOf("😊", find_str);
 			tf = parseInt(input_file.substring(find_str, end_index), 10);
 			// take the tf and add into the OBJ
-			newOBJ[word][newOBJ[word].length - 1][2] = tf;
-			find_str += end_index - find_str + 1;
+			find_str += (end_index - find_str) + 2;
 		}
 
 		if (totalWords == undefined) {
@@ -237,9 +237,9 @@ function deserializeObject(input_file, half_doneOBJ, pageAmount) {
 			totalWords = parseInt(input_file.substring(find_str, end_index), 10);
 
 			// with this we can then normalize tf:
-			newOBJ[word][newOBJ[word].length - 1][2] = newOBJ[word][newOBJ[word].length - 1][2] / totalWords;
+			tf = tf / totalWords;
 			// jump past end of number:
-			find_str = end_index - find_str + 1;
+			find_str += (end_index - find_str) + 2;
 		}
 
 		if (df == undefined) {
@@ -249,8 +249,8 @@ function deserializeObject(input_file, half_doneOBJ, pageAmount) {
 			// then we want to find our inverse document frequency
 			// and then go ahead and devide out normalize term frequency by that number
 			df = Math.log(pageAmount * df);
-			newOBJ[word][newOBJ[word].length - 1][2] *= df;
-			find_str = end_index - find_str + 1;
+			newOBJ[word][newOBJ[word].length - 1][2] = tf * df;
+			find_str += end_index - find_str + 1;
 		}
 
 		if (position == undefined) {
@@ -262,7 +262,7 @@ function deserializeObject(input_file, half_doneOBJ, pageAmount) {
 		}
 	}
 
-	return newOBJ;
+	return [newOBJ, pageAmount];
 }
 
 module.exports = {

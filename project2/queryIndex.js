@@ -6,7 +6,7 @@ const {
 	deserializeObject
 } = require('../project1/utils');
 
-let pages;
+let pages, pageAmount;
 // declaring globally for use through multiple functions
 
 function grabDocs(word, needPos) {
@@ -196,11 +196,14 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 		let chunk;
 
 		while (null !== (chunk = source.read())) {
-			pages = deserializeObject(chunk.toString(), pages);
+			pages = deserializeObject(chunk.toString(), pages, pageAmount);
+			pageAmount = pages[1];
+			pages = pages[0];
 		}
 	});
 
 	source.on('end', () => {
+		console.log(pageAmount, pages);
 		let stringQueries = fs.readFileSync(query_page, 'utf8');
 		let line_start = 0;
 
@@ -341,7 +344,7 @@ function cleanQuery(string, stopwords, query_type) {
 			stopwords.forEach(w => {
 				if (w == nWord) {
 					isStopword = true;
-					break;
+					return;
 				}
 			});
 
