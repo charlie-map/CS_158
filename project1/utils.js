@@ -125,11 +125,16 @@ function roughSizeOfObject(object) {
 	return bytes;
 }
 
-function serializeObject(textfile, object) {
-	console.log(roughSizeOfObject(object));
+const A = 0.4;
+
+function serializeObject(textfile, object, pageAmount) {
 	let writer = fs.createWriteStream(textfile, {
 		highWaterMark: 65535
 	});
+
+	if (pageAmount) {
+		writer.write(`💦${pageAmount}💦\n`);
+	}
 
 	let objectKeys = Object.keys(object),
 		string, sub_object, obKey = 0;
@@ -139,8 +144,18 @@ function serializeObject(textfile, object) {
 
 		sub_object = object[objectKeys[obKey]];
 		quicksort(sub_object, 0, sub_object.length - 1);
-		for (let grabDocs = 0; grabDocs < sub_object.length; grabDocs++) {
-			string += sub_object[grabDocs][0] + ":" + sub_object[grabDocs][1] + ",;";
+		console.log(objectKeys[obKey], sub_object);
+		if (pageAmount) {
+			// make document frequency
+			let df = sub_object.length;
+
+			for (let grabDocs = 0; grabDocs < df; grabDocs++) {
+				string += `${sub_object[grabDocs][0]}:${df}💩${sub_object[grabDocs][1]},;`;
+			}
+		} else {
+			for (let grabDocs = 0; grabDocs < sub_object.length; grabDocs++) {
+				string += sub_object[grabDocs][0] + ":" + sub_object[grabDocs][1] + ",;";
+			}
 		}
 
 		string += "\n";
