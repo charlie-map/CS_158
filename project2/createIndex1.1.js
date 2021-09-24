@@ -29,6 +29,32 @@ function findPages(string, stopwords, writer) {
 					// this is a special case for encapsulating tags,
 					// if we've reached the end, we don't really care, we
 					// just need to move past it
+
+					// we can also go ahead and augment our pages to have extra values:
+					// but only if we're closing a page tag:
+					if (string[i + 2] == "p" && string[i + 3] == "a" && string[i + 4] == "g" && string[i + 5]) {
+						// let's go through page temp and use the term frequencies
+						// we've found, and the total words to add a
+						// normalized term to our terms
+						let tempWords = Object.keys(pageTemp);
+						for (let wordRun = 0; wordRun < tempWords.length; wordRun++) {
+
+							// we need to look for the correct page_id:
+							// at pageTemp[tempWords[wordRun]][1]:
+
+							// POS 2 in pages is the term frequency
+							pages[tempWords[wordRun]][pageTemp[tempWords[wordRun]][1]][2] = pageTemp[tempWords[wordRun]][0];
+
+							// POS 2 is the total words in our page
+							pages[tempWords[wordRun]][pageTemp[tempWords[wordRun]][1]][3] = totalWords;
+							// ^ grab totalWords
+							// which can be save as tempWords.length
+						}
+
+						// done!
+						pageTemp = Object.create(null);
+					}
+
 					// make sure that string.indexOf() is not negative
 					// if the string.indexOf() is negative, we need to actually
 					// go to the end of the string instead, since in this case we don't
@@ -49,7 +75,8 @@ function findPages(string, stopwords, writer) {
 				if ((string[i] == " " || string[i] == "\n" || string[i] == "\t" ||
 						string[i] == "<") && buffer == "text" && word.length) {
 					if (word.length < 25) {
-						let stem_word = stemmer(word), stem_page = pages[stem_word];
+						let stem_word = stemmer(word),
+							stem_page = pages[stem_word];
 						page_id = parseInt(page_id, 10);
 						if (!stem_page) {
 							pages[stem_word] = [
@@ -75,7 +102,7 @@ function findPages(string, stopwords, writer) {
 								pages[stem_word][stem_page.length] = [
 									page_id, [i]
 								];
-								pageTemp[stem_word] = [1, stem_page.length];
+								pageTemp[stem_word] = [1, stem_page.length - 1];
 								// the second argument is the position of our page_id
 								// in pages
 							}
@@ -116,6 +143,8 @@ function findPages(string, stopwords, writer) {
 				// make sure the buffer is a type of tag we want
 				// ^ we only care about id, title, and text
 				if (buffer == "page") {
+					pageAmount++;
+
 					page_id = "";
 					page_idDone = false;
 					page_title = "";
@@ -139,27 +168,6 @@ function findPages(string, stopwords, writer) {
 						string[i - 2] == "i" && string[i - 1] == "d")) {
 					writer.write(`${page_id}|${page_title}\n`);
 					page_idDone = true;
-				}
-
-				if (buffer == "page") {
-					pageAmount++;
-					// let's go through page temp and use the term frequencies
-					// we've found, and the total words to add a
-					// normalized term to our terms
-					let tempWords = Object.keys(pageTemp);
-					for (let wordRun = 0; wordRun < tempWords.length; wordRun++) {
-
-						// we need to look for the correct page_id:
-						// at pageTemp[tempWords[wordRun]][1]:
-
-						pages[tempWords[wordRun]][pageTemp[tempWords[wordRun]][1]][2] =
-						pageTemp[tempWords[wordRun]][0] / totalWords;
-						// ^ use the term frequency in page temp and the totalWords to get
-						// normalization
-					}
-
-					// done!
-					pageTemp = Object.create(null);
 				}
 
 				word = "";

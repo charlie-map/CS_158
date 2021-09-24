@@ -217,7 +217,7 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 	});
 }
 
-findQueries("/media/hotboy/DUMP/myIndex.dat", `./myQueries.dat`, `./myStopWords.dat`, `./myDocs.dat`);
+findQueries("../project1/myIndex.dat", `./myQueries.dat`, `./myStopWords.dat`, `./myDocs.dat`);
 // console.log(queryIndexer("(spACE AND odyssey{}) OR orange", "./myStopWords.dat"));;
 
 function makeBQQuery(qString, low, high) {
@@ -295,8 +295,10 @@ function normalChar(char) {
 }
 
 function cleanQuery(string, stopwords, query_type) {
-	let pre = 0;
+	let pre = 0, starMatch = [];
 	for (let run = 0; run < string.length + 1; run++) {
+		if (string["*"])
+			starMatch.push(run - pre);
 
 		// first case: we have an open something, and we need to make sure it's not a normal character before
 		if ((string[run] == "(" || (string[run] == "\"" && !normalChar(string[run - 1]))) &&
@@ -334,9 +336,13 @@ function cleanQuery(string, stopwords, query_type) {
 
 			let isStopword = false;
 			// then stopwords:
+			// assuming stopwords is sorted, we can perform a binary search ** NEEDS MAKING:
+			// isStopword = searchWords(stopwords, nWord);
 			stopwords.forEach(w => {
-				if (w == nWord)
+				if (w == nWord) {
 					isStopword = true;
+					break;
+				}
 			});
 
 			// we now decide on what to do with this information:

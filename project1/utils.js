@@ -150,7 +150,11 @@ function serializeObject(textfile, object, pageAmount) {
 			let df = sub_object.length;
 
 			for (let grabDocs = 0; grabDocs < df; grabDocs++) {
-				string += `${sub_object[grabDocs][0]}:${df}💩${sub_object[grabDocs][1]},;`;
+				let grabSub = sub_object[grabDocs];
+				if (!grabSub[0] || !grabSub[1] || !grabSub[2] || !grabSub[3])
+					continue;
+
+				string += `${grabSub[0]}:${grabSub[2]}😊${grabSub[3]}🌈${df}💩${grabSub[1]},;`;
 			}
 		} else {
 			for (let grabDocs = 0; grabDocs < sub_object.length; grabDocs++) {
@@ -171,19 +175,32 @@ function serializeObject(textfile, object, pageAmount) {
 	}
 }
 
-function deserializeObject(input_file, half_doneOBJ) {
+function deserializeObject(input_file, half_doneOBJ, pageAmount) {
+	let start = !pageAmount && !half_doneOBJ ? input_file.indexOf("\n") : 0;
+	start = start == -1 ? 0 : start;
+	pageAmount = !pageAmount && !half_doneOBJ ? input_file.substring(0, start) : pageAmount;
 
 	// we are assuming the incoming file has the form:
 	/*
-		cat|2:5,10,88;
-		dog|4:20,4;10:45,69;40:10,45,32465;
+		space|2:1😊4🌈4💩180,;3:1😊8🌈4💩262,;8:1😊5🌈4💩587,;
+		odyssei|3:1😊8🌈3💩270,;12:1😊2🌈3💩832,;
+
+		TERMS:
+			term after | -- the doc_id
+			term after : -- the term frequency in that doc
+			term after 😊 -- the total words in that document
+			term after 🌈 -- the document frequency
+			term after 💩 -- positions
 	*/
 	let newOBJ = half_doneOBJ ? half_doneOBJ : {},
-		word, doc_id, position;
+		word, doc_id, tf, totalWords, df, position;
 
-	for (let find_str = 0; find_str < input_file.length; find_str++) {
+	for (let find_str = start + 1; find_str < input_file.length; find_str++) {
 		word = input_file[find_str] == "\n" ? undefined : word;
 		doc_id = input_file[find_str] == ";" || input_file[find_str] == "\n" ? undefined : doc_id;
+		tf = input_file[find_str] == ";" ? undefined : tf;
+		totalWords = input_file[find_str] == ";" ? undefined : totalWords;
+		df = input_file[find_str] == ";" ? undefined : df;
 		//position = input_file[find_str] == "," || input_file[find_str] == ";" || input_file[find_str] == "\n" ? undefined : position;
 
 		if (input_file[find_str] == "\n" || input_file[find_str] == ";")
@@ -205,6 +222,35 @@ function deserializeObject(input_file, half_doneOBJ) {
 			doc_id = parseInt(input_file.substring(find_str, end_index), 10);
 			newOBJ[word].push([doc_id, []])
 			find_str += end_index - find_str + 1;
+		}
+
+		if (tf == undefined) {
+			end_index = input_file.indexOf("", find_str);
+			tf = parseInt(input_file.substring(find_str, end_index), 10);
+			// take the tf and add into the OBJ
+			newOBJ[word][newOBJ[word].length - 1][2] = tf;
+			find_str += end_index - find_str + 1;
+		}
+
+		if (totalWords == undefined) {
+			end_index = input_file.indexOf("🌈", find_str);
+			totalWords = parseInt(input_file.substring(find_str, end_index), 10);
+
+			// with this we can then normalize tf:
+			newOBJ[word][newOBJ[word].length - 1][2] = newOBJ[word][newOBJ[word].length - 1][2] / totalWords;
+			// jump past end of number:
+			find_str = end_index - find_str + 1;
+		}
+
+		if (df == undefined) {
+			end_index = input_file.indexOf("💩", find_str);
+			df = parseInt(input_file.substring(find_str, end_index), 10);
+
+			// then we want to find our inverse document frequency
+			// and then go ahead and devide out normalize term frequency by that number
+			df = Math.log(pageAmount * df);
+			newOBJ[word][newOBJ[word].length - 1][2] *= df;
+			find_str = end_index - find_str + 1;
 		}
 
 		if (position == undefined) {

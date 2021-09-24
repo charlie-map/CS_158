@@ -1,7 +1,7 @@
 d<collection>
 <page>
 <id>0</id>
-<text>2001 space odyssei</text>
+<text>2001 2001 space odyssei</text>
 </page>
 <page>
 <id>1</id>
@@ -51,4 +51,8 @@ d<collection>
 <id>12</id>
 <text>homer odyssei</text>
 </page>
+<page>
+<id>13</id>
+<text>test test after 12</text>
+</page
 </collection>

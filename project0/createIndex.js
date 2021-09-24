@@ -18,7 +18,8 @@ function createIndex(array) {
 	When running, need to access process.argv[2] to see what dictionary to pull from
 */
 
-let file = fs.readFileSync(`./${process.argv[2]}`, 'utf8').split("\n");
+console.time();
+let file = fs.readFileSync(`${process.argv[2]}`, 'utf8').split("\n");
 createIndex(file);
 
 let file_string = file.map(item => {return item + "\n"}).join("");
@@ -26,3 +27,4 @@ let file_string = file.map(item => {return item + "\n"}).join("");
 fs.writeFile(`${process.argv[3]}`, file_string, (err) => {
 	if (err) throw err;
 });
+console.timeEnd();
