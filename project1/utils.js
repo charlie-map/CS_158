@@ -247,8 +247,7 @@ function deserializeObject(input_file, half_doneOBJ, pageAmount) {
 			df = parseInt(input_file.substring(find_str, end_index), 10);
 
 			// then we want to find our inverse document frequency
-			// and then go ahead and devide out normalize term frequency by that number
-			df = Math.log(pageAmount * df);
+			df = Math.log(pageAmount / df);
 			newOBJ[word][newOBJ[word].length - 1][2] = tf * df;
 			find_str += end_index - find_str + 2;
 		}

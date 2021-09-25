@@ -47,6 +47,27 @@ function findMatch(pos, range, wordLen, array, low, high) {
 	}
 }
 
+function search(currPage, doc_id, low, high) {
+	if (!currPage || !doc_id)
+		return 0;
+	low = low == undefined ? 0 : low;
+	high = high == undefined ? currPage.length : high;
+
+	if (low > high || high >= currPage.length) {
+		return currPage[low][0] == doc_id ? currPage[low] : 0;
+	}
+
+	// find middle:
+	let mid = Math.floor((low + high) * 0.5);
+
+	if (currPage[mid][0] == doc_id)
+		return currPage[mid];
+
+	let lower = currPage[mid][0] > doc_id ? low : mid + 1;
+	let higher = currPage[mid][0] > doc_id ? mid - 1 : high;
+	return search(currPage, doc_id, lower, higher);
+}
+
 function isPhraseMatch(pointers, qStrings) {
 	// first find the document that checks off for all pointers,
 	// aka that the word occurs in that document
@@ -74,7 +95,8 @@ function isPhraseMatch(pointers, qStrings) {
 		return false; // there is no document pairs between our words
 
 	let currPage = pages[qStrings[1]][pointers[0]][1]; // UH OH
-	let isPair = true, buildWordLen;
+	let isPair = true,
+		buildWordLen;
 	for (let point = 0; point < currPage.length; point++) {
 		buildWordLen = 0;
 		let i;
@@ -95,6 +117,37 @@ function isPhraseMatch(pointers, qStrings) {
 	return isPair;
 }
 
+function sortDocs(docs, dotProds, low, high) {
+	if (low < high) {
+		let pivot = docPart(docs, dotProds, low, high);
+		sortDocs(docs, dotProds, pivot + 1, high);
+		sortDocs(docs, dotProds, low, pivot - 1)
+	}
+}
+
+function swap(arr1, arr2, val1, val2) {
+	let b1 = arr1[val1], b2 = arr2[val1];
+
+	arr1[val1] = arr1[val2];
+	arr2[val1] = arr2[val2];
+
+	arr1[val2] = b1;
+	arr2[val2] = b2;
+}
+
+function docPart(docs, dotProds, low, pivot) {
+	let lowest = low - 1;
+
+	for (let j = low; j < pivot; j++) {
+		if (dotProds[j] > dotProds[pivot]) {
+			swap(docs, dotProds, ++lowest, j);
+		}
+	}
+
+	swap(docs, dotProds, ++lowest, pivot);
+	return lowest;
+}
+
 function queryIndexer(query_string, stopwords, docWriter) {
 	// first determine the type of query string:
 	// 0: OWQ if query_string.split(" ").length == 1
@@ -107,6 +160,9 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		query_string[0] == "\"" && query_string[query_string.length - 1] == "\"" ? 2 : 3;
 
 	let qStrings = cleanQuery(query_string, stopwords, query_type);
+	let userTermScores = qStrings[1];
+	let allWords = qStrings[2];
+	qStrings = qStrings[0];
 	if (query_type == 1)
 		makeBQQuery(qStrings, 0, qStrings.length - 1);
 
@@ -119,6 +175,7 @@ function queryIndexer(query_string, stopwords, docWriter) {
 			if there are any parentheses, we will need to construct a sub array
 			to work through those sub problems of the query first
 	*/
+	let metaDocs = [];
 	if (query_type == 0 || query_type == 1 || query_type == 3) {
 		function findComparatives(qs, start) {
 			let bq_type, cmp = [];
@@ -144,7 +201,6 @@ function queryIndexer(query_string, stopwords, docWriter) {
 					cmp.push(grabDocs(qs[strRun]));
 				}
 
-
 				// at this point we need to check bq_type,
 				// if it has a value, then we need to do something to the cmp,
 				// otherwise nothing happens and we keep going
@@ -159,14 +215,13 @@ function queryIndexer(query_string, stopwords, docWriter) {
 			}
 			return cmp;
 		}
-		docWriter.write(`${query_string} => ${findComparatives(qStrings, 0)}\n`)
+		metaDocs = findComparatives(qStrings, 0)[0];
 	} else {
 		// with phrase queries, we need to document positions as well, so
 		// for that we will also have a second parameter for grabDocs:
 		// grabDocs("word", true); to emphasize that we need positions connected
 
-		let pointers = [-1],
-			metaDocs = [];
+		let pointers = [-1];
 		for (let word = 0; word < pages[qStrings[1]].length; word++) {
 			pointers[0]++;
 
@@ -176,9 +231,35 @@ function queryIndexer(query_string, stopwords, docWriter) {
 			if (isPhraseMatch(pointers, qStrings))
 				metaDocs.push(pages[qStrings[1]][pointers[0]][0]);
 		}
-
-		docWriter.write(`${query_string} => ${metaDocs}\n`);
 	}
+
+	// before we add the docs, go ahead and work out the cosine similarity:
+	// first we need to calculate the dot product of
+	let termProduct = [];
+	// ^ this will hold the degree of match with the user query and meta docs
+	for (let doc = 0; doc < metaDocs.length; doc++) {
+		termProduct[doc] = 0;
+
+		for (let s = 0; s < qStrings.length; s++) {
+			let qs = qStrings[s];
+			if (qs == "*" || qs == "\"" || qs == "(" || qs == ")" || qs == "AND" || qs == "OR")
+				continue; // skip if not actual word
+
+			// before we do any big math, need to normalize the user term on all words in query:
+			if (doc == 0) // only do this the first time
+				userTermScores[qs] /= allWords;
+
+			// now we can do the math for each document:
+			// we'll need to find the document position in the page
+			let searcher = search(pages[qs], metaDocs[doc]);
+			termProduct[doc] += (userTermScores[qs] ? userTermScores[qs] : 0) * (searcher == 0 ? searcher : searcher[0]);
+		}
+	}
+
+
+	// sort meta docs on whichever is highest first:
+	sortDocs(metaDocs, termProduct, 0, termProduct.length - 1);
+	docWriter.write(`${query_string} => ${metaDocs}\n`)
 }
 
 function findQueries(skiplist_file, query_page, stopwords, doc_out) {
@@ -298,7 +379,12 @@ function normalChar(char) {
 }
 
 function cleanQuery(string, stopwords, query_type) {
-	let pre = 0, starMatch = [];
+	let pre = 0,
+		starMatch = [];
+
+	// items for tf-idf:
+	let tf = Object.create(null),
+		totalWords = 0;
 	for (let run = 0; run < string.length + 1; run++) {
 		// if (string["*"])
 		// 	starMatch.push(run - pre);
@@ -356,6 +442,8 @@ function cleanQuery(string, stopwords, query_type) {
 				string = string.substring(0, pre) + string.substring(run, string.length);
 				run = (run - word.length) + (realCharEnd ? 2 : 0);
 			} else {
+				totalWords++;
+				tf[nWord] = tf[nWord] ? tf[nWord] + 1 : 1;
 				// otherwise we are going to add the cleaned word into its place:
 				string = string.substring(0, pre) +
 					nWord + (nWord.length && query_type == 3 ? " OR" : "") + string.substring(run, string.length);
@@ -371,5 +459,5 @@ function cleanQuery(string, stopwords, query_type) {
 		}
 	}
 
-	return string.split(" ");
+	return [string.split(" "), tf, totalWords];
 }
