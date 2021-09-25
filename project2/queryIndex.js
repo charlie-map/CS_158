@@ -73,7 +73,7 @@ function isPhraseMatch(pointers, qStrings) {
 	if (falsey)
 		return false; // there is no document pairs between our words
 
-	let currPage = pages[qStrings[1]][pointers[0]][1];
+	let currPage = pages[qStrings[1]][pointers[0]][1]; // UH OH
 	let isPair = true, buildWordLen;
 	for (let point = 0; point < currPage.length; point++) {
 		buildWordLen = 0;
@@ -300,8 +300,8 @@ function normalChar(char) {
 function cleanQuery(string, stopwords, query_type) {
 	let pre = 0, starMatch = [];
 	for (let run = 0; run < string.length + 1; run++) {
-		if (string["*"])
-			starMatch.push(run - pre);
+		// if (string["*"])
+		// 	starMatch.push(run - pre);
 
 		// first case: we have an open something, and we need to make sure it's not a normal character before
 		if ((string[run] == "(" || (string[run] == "\"" && !normalChar(string[run - 1]))) &&

@@ -250,12 +250,13 @@ function deserializeObject(input_file, half_doneOBJ, pageAmount) {
 			// and then go ahead and devide out normalize term frequency by that number
 			df = Math.log(pageAmount * df);
 			newOBJ[word][newOBJ[word].length - 1][2] = tf * df;
-			find_str += end_index - find_str + 1;
+			find_str += end_index - find_str + 2;
 		}
 
 		if (position == undefined) {
 			end_index = input_file.indexOf(",", find_str);
 			position = parseInt(input_file.substring(find_str, end_index), 10);
+
 			newOBJ[word][newOBJ[word].length - 1][1].push(position);
 			position = undefined;
 			find_str += end_index - find_str;
