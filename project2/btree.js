@@ -1,6 +1,7 @@
 const m = 5; // The maximum keys for each node - if the amount hits m, the tree splits
 
 let btree = { // This will be considered the root node
+	ID: 1, // this keeps track of our auto-increment
 	key: [],
 	payload: [],
 	children: []
@@ -33,43 +34,45 @@ function quicksort(array, payload, low, high) {
 	return [array, payload];
 }
 
+function swap(arr, v1, v2) {
+	let buffer = arr[v1];
+	arr[v1] = arr[v2];
+	arr[v2] = buffer;
+}
+
 function partition(array, payload, startlow, pivot) {
 	let lowest = startlow - 1;
-	let buffer;
+
 	for (let j = startlow; j < pivot; j++) {
 		if (array[j] < array[pivot]) {
-			lowest++;
-			buffer = array[j];
-			array[j] = array[lowest];
-			array[lowest] = buffer;
+			swap(array, ++lowest, j);
 			// swap payload values
-			buffer = payload[j];
-			payload[j] = payload[lowest];
-			payload[lowest] = buffer;
+			swap(payload, lowest, j);
 		}
 	}
-	buffer = array[lowest + 1];
-	array[lowest + 1] = array[pivot];
-	array[pivot] = buffer;
+
+	swap(array, ++lowest, pivot);
 	// swap payload values
-	buffer = payload[lowest + 1];
-	payload[lowest + 1] = payload[pivot];
-	payload[pivot] = buffer;
-	return lowest + 1;
+	swap(payload, lowest, pivot);
+	return lowest;
 }
 
 function split_node(b_tree) {
 	let parent_pos = Math.floor(m / 2);
 	let parent_key = b_tree.key[parent_pos];
 	let parent_payload = b_tree.payload[parent_pos];
+
 	let left_keys = b_tree.key.splice(0, parent_pos);
 	let left_payloads = b_tree.payload.splice(0, parent_pos);
 	let left_children = b_tree.children.splice(0, parent_pos + 1);
+
 	let right_keys = b_tree.key.splice(1, m - (parent_pos - 1));
 	let right_payloads = b_tree.payload.splice(1, m - (parent_pos - 1));
 	let right_children = b_tree.children.splice(1 - 1, m - (parent_pos - 1));
+
 	b_tree.key = [parent_key];
 	b_tree.payload = [parent_payload];
+
 	b_tree.children[0] = {
 		key: left_keys,
 		payload: left_payloads,
@@ -83,14 +86,19 @@ function split_node(b_tree) {
 	return;
 }
 
-function insert(b_tree, key, value) {
+function insert(b_tree, value, key) {
+	if (!key)
+		key = b_tree.ID++;
+
 	let key_pos = 0;
 	let combine_compare = false; // Knowing if there is a need to combine the child up in the parent
+
 	for (let run_through = 0; run_through < b_tree.key.length; run_through++) {
 		if (key > b_tree.key[run_through]) key_pos++;
 	}
+
 	if (b_tree.children && b_tree.children[key_pos]) {
-		combine_compare = insert(b_tree.children[key_pos], key, value);
+		combine_compare = insert(b_tree.children[key_pos], value, key);
 	} else {
 		// insert here and start fixing the tree upward
 		b_tree.key.push(key);
@@ -101,24 +109,31 @@ function insert(b_tree, key, value) {
 			return true;
 		}
 	}
+
 	if (!combine_compare) return false;
 	// Pull up the child into the parent
 	b_tree.key.push(b_tree.children[key_pos].key[0]);
 	b_tree.payload.push(b_tree.children[key_pos].payload[0]);
+
 	quicksort(b_tree.key, b_tree.payload, 0, b_tree.key.length - 1);
+
 	let right_children = b_tree.children[key_pos].children[1];
 	b_tree.children[key_pos] = b_tree.children[key_pos].children[0];
+
 	while (b_tree.children[key_pos + 1]) {
 		let buffer = b_tree.children[key_pos + 1];
 		b_tree.children[key_pos + 1] = right_children;
 		right_children = buffer;
 		key_pos++;
 	}
+
 	b_tree.children[key_pos + 1] = right_children;
+
 	if (b_tree.key.length == m) {
 		split_node(b_tree);
 		return true;
 	}
+
 	return false;
 }
 
@@ -129,6 +144,23 @@ function searchB(b_tree, key) {
 		if (key > b_tree.key[i]) key_pos++;
 	}
 	if (typeof b_tree.children[key_pos] != "undefined") return searchB(b_tree.children[key_pos], key);
+	return "No value found";
+}
+
+function searchBWord(b_tree, value) {
+	let key_pos = 0;
+
+	console.log(b_tree);
+
+	// we're going to run through the keys and check our payloads:
+	for (let i = 0; i < b_tree.key.length; i++) {
+		if (value == b_tree.payload[i]) return b_tree;
+		console.log(value, b_tree.payload[i], value > b_tree.payload[i]);
+		if (value > b_tree.payload[i]) key_pos++;
+	}
+
+	console.log(key_pos);
+	if (typeof b_tree.children[key_pos] != "undefined") return searchB(b_tree.children[key_pos], value);
 	return "No value found";
 }
 
@@ -150,6 +182,19 @@ function update(b_tree, key, value) {
 	b_tree.payload[key_pos] = value;
 	return;
 }
+
+console.time();
+for (let i = 0; i < 100; i++) {
+	insert(btree, "test" + i);
+}
+console.timeEnd();
+
+console.log(btree);
+
+console.time();
+console.log(searchBWord(btree, "test4"));
+console.log(searchB(btree, 5));
+console.timeEnd();
 
 module.exports = {
 	btree,

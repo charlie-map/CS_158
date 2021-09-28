@@ -265,6 +265,8 @@ function queryIndexer(query_string, stopwords, docWriter) {
 				if (isPhraseMatch(pointers, qStrings))
 					metaDocs.push(pages[qStrings[1]][pointers[0]][0]);
 			}
+		} else {
+			
 		}
 	}
 
