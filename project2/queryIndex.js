@@ -5,6 +5,12 @@ const {
 	arrOrGate,
 	deserializeObject
 } = require('../project1/utils');
+const {
+	btree,
+	insert,
+	searchB,
+	update
+} = require('./btree.js');
 
 let pages, pageAmount;
 // declaring globally for use through multiple functions
@@ -75,11 +81,13 @@ function isPhraseMatch(pointers, qStrings) {
 	// we will loop based off of which pointer has the highest value:
 	let match = pages[qStrings[1]][pointers[0]][0],
 		falsey = false;
+
 	for (let find = 1; find < qStrings.length - 2; find++) {
 		if (pointers[find] == undefined)
 			pointers[find] = 0;
 
-		let currPage = pages[qStrings[find + 1]]
+		console.log("starting next page", qStrings[find + 1], pages[qStrings[find + 1]]);
+		let currPage = pages[qStrings[find + 1]];
 
 		while (currPage[pointers[find]] && currPage[pointers[find]][0] < match) {
 			pointers[find]++;
@@ -126,7 +134,8 @@ function sortDocs(docs, dotProds, low, high) {
 }
 
 function swap(arr1, arr2, val1, val2) {
-	let b1 = arr1[val1], b2 = arr2[val1];
+	let b1 = arr1[val1],
+		b2 = arr2[val1];
 
 	arr1[val1] = arr1[val2];
 	arr2[val1] = arr2[val2];
@@ -150,16 +159,36 @@ function docPart(docs, dotProds, low, pivot) {
 
 function queryIndexer(query_string, stopwords, docWriter) {
 	// first determine the type of query string:
-	// 0: OWQ if query_string.split(" ").length == 1
+	// 0: OWQ if query_string.index(" ") == -1
 	// 1: BQ if query_string CONTAINS "AND" or "OR"
 	// 2: PQ if query_string is wrapped in quotes
 	// 3: FTQ otherwise
 
-	let query_type = query_string.indexOf(" ") == -1 ? 0 :
-		query_string.includes("AND") || query_string.includes("OR") ? 1 :
-		query_string[0] == "\"" && query_string[query_string.length - 1] == "\"" ? 2 : 3;
+	// UPDATES: Now need to handle wildcards:
+	/*
+		UPDATED query decider:
+			0: OWQ if query_string.index(" ") == -1 && query_string.index("*") == -1
+			1: BQ if query_string CONTAINS "AND" or "OR"
+			2: PQ if query_string is wrapped in quotes and 
+	*/
+
+	let starIndex = query_string.indexOf("*");
+	let spaceIndex = query_string.indexOf(" ");
+	let query_type = 0;
+
+	if (starIndex == -1) {
+		// now either a OWQ, BQ, PQ, or FTQ
+		query_type = spaceIndex == -1 ? 0 :
+			query_string.includes("AND") || query_string.includes("OR") ? 1 :
+			query_string[0] == "\"" && query_string[query_string.length - 1] == "\"" ? 2 : 3;
+	} else {
+		// we now know the query is either wildcard query (WQ), or wildcard phrase query (WPQ)
+		// WQ is type 4, and WPQ is type 5
+		query_type = spaceIndex == -1 ? 4 : 5;
+	}
 
 	let qStrings = cleanQuery(query_string, stopwords, query_type);
+
 	let userTermScores = qStrings[1];
 	let allWords = qStrings[2];
 	qStrings = qStrings[0];
@@ -221,15 +250,21 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		// for that we will also have a second parameter for grabDocs:
 		// grabDocs("word", true); to emphasize that we need positions connected
 
-		let pointers = [-1];
-		for (let word = 0; word < pages[qStrings[1]].length; word++) {
-			pointers[0]++;
+		console.log(query_type, qStrings);
 
-			if (!pages[qStrings[1]][pointers[0]])
-				break;
+		if (query_type == 2) {
+			console.log('queries', qStrings[1], pages[qStrings[1]]);
 
-			if (isPhraseMatch(pointers, qStrings))
-				metaDocs.push(pages[qStrings[1]][pointers[0]][0]);
+			let pointers = [-1];
+			for (let word = 0; word < pages[qStrings[1]].length; word++) {
+				pointers[0]++;
+
+				if (!pages[qStrings[1]][pointers[0]])
+					break;
+
+				if (isPhraseMatch(pointers, qStrings))
+					metaDocs.push(pages[qStrings[1]][pointers[0]][0]);
+			}
 		}
 	}
 
@@ -379,15 +414,13 @@ function normalChar(char) {
 }
 
 function cleanQuery(string, stopwords, query_type) {
-	let pre = 0,
-		starMatch = [];
+	let pre = 0;
 
 	// items for tf-idf:
 	let tf = Object.create(null),
-		totalWords = 0;
+		totalWords = 0,
+		realCharEnd = false;
 	for (let run = 0; run < string.length + 1; run++) {
-		// if (string["*"])
-		// 	starMatch.push(run - pre);
 
 		// first case: we have an open something, and we need to make sure it's not a normal character before
 		if ((string[run] == "(" || (string[run] == "\"" && !normalChar(string[run - 1]))) &&
@@ -403,9 +436,7 @@ function cleanQuery(string, stopwords, query_type) {
 		if (string[run] == " " || string[run] == ")" || string[run] == "\"" || string[run] == undefined) {
 
 			// along with this, if the character we run into is actually a ")" or "\"", we want to keep it
-			// just move it out of our way:
-
-			let realCharEnd = false;
+			// realCharEnd = false;
 
 			if (string[run] == ")" || string[run] == "\"") {
 				string = string.substring(0, run) + " " + string[run] + string.substring(run + 1, string.length);
@@ -421,7 +452,10 @@ function cleanQuery(string, stopwords, query_type) {
 				continue;
 			}
 
-			let nWord = stemmer(word.toLowerCase().replace(/[^a-z0-9]/g, ""));
+			let nWord = word;
+
+			if (word.indexOf("*") == -1)
+				nWord = stemmer(word.toLowerCase().replace(/[^a-z0-9]/g, ""));
 
 			let isStopword = false;
 			// then stopwords:
