@@ -80,8 +80,7 @@ function strPerms(trie_level, query, Qpoint, buildWord, killWildcardChar) {
 	// if there are no children on trie_level, 
 	// we can go ahead and return whereever we are:
 	if (trieKeys.length == 0 || (query[Qpoint] == undefined &&
-		killWildcardChar == undefined) /*|| (killWildcardChar == "" &&
-		trie_level.finished)*/) {
+		killWildcardChar == undefined)) {
 		// we only want to return base on what killWildcardChar is:
 		// if killWildcardChar is undefined or "", 
 		// we can just return, but if it's a character
@@ -105,6 +104,8 @@ function strPerms(trie_level, query, Qpoint, buildWord, killWildcardChar) {
 	// work through it:
 	// console.log("hey", killWildcardChar, "query:", query[Qpoint], buildWord);
 
+	console.log("test", query[Qpoint]);
+
 	if (killWildcardChar != undefined) {
 
 		// our first step is that we start moving through trie_level:
@@ -123,10 +124,13 @@ function strPerms(trie_level, query, Qpoint, buildWord, killWildcardChar) {
 			let foundKillChar = killWildcardChar != "" && currentTrieKey == killWildcardChar;
 			//console.log(foundKillChar);
 
-			console.log(currentTrieKey, killWildcardChar);
-			// if (!foundKillChar && trie_level.childs[currentTrieKey].finished &&
-			// 	Object.keys(trie_level.childs[currentTrieKey].childs).length)
-			// 	finalWords.push(buildWord + currentTrieKey);
+			if (foundKillChar && trie_level.childs[currentTrieKey].finished) {
+				// we need to keep whatever word we were
+				// building ***IF IT WAS A trie.finished VALUE***
+				// as in it's a full word:
+				finalWords.push(buildWord + currentTrieKey);
+			}
+			console.log(foundKillChar);
 
 			finalWords.push(...strPerms(trie_level.childs[currentTrieKey], query,
 				Qpoint + (foundKillChar ? 1 : 0), buildWord + currentTrieKey,
@@ -148,7 +152,8 @@ function strPerms(trie_level, query, Qpoint, buildWord, killWildcardChar) {
 		for (let allCards = 0; allCards < trieKeys.length; allCards++) {
 
 			finalWords.push(...strPerms(trie_level.childs[trieKeys[allCards]],
-				query, Qpoint, buildWord + trieKeys[allCards],
+				query, Qpoint + (trieKeys[allCards] == killWildcardChar ? 1: 0),
+				buildWord + trieKeys[allCards],
 				trieKeys[allCards] == killWildcardChar ? undefined : killWildcardChar))
 		}
 	} else {
@@ -169,7 +174,7 @@ insert(trie, "catter", 5);
 
 //console.log(trie.childs);
 
-console.log(strPerms(trie, "*a*", 0));
+console.log(strPerms(trie, "*", 0));
 
 // let trieKeys = trie_level ? Object.keys(trie_level.childs) : [];
 // 	buildWord = buildWord == undefined ? "" : buildWord;
