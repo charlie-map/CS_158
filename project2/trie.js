@@ -69,28 +69,94 @@ function insert(trie_level, word, bTreeLoc, word_position) {
 		At the end of this process, strPerms will return a completed
 		array of all possible permutations of our wildcard
 */
-function strPerms(trie_level, query, Qpoint, killWildcardChar) {
+function strPerms(trie_level, query, Qpoint, buildWord, killWildcardChar) {
 
-	let trieKeys = Object.keys(trie_level);
+	console.log('\n\n', buildWord, trie_level, killWildcardChar);
+
+	buildWord = !buildWord ? "" : buildWord;
+	let trieKeys = Object.keys(trie_level.childs);
+	// console.log(trieKeys.length == 0);
+
+	// if there are no children on trie_level, 
+	// we can go ahead and return whereever we are:
+	if (trieKeys.length == 0 || (query[Qpoint] == undefined &&
+		killWildcardChar == undefined) /*|| (killWildcardChar == "" &&
+		trie_level.finished)*/) {
+		// we only want to return base on what killWildcardChar is:
+		// if killWildcardChar is undefined or "", 
+		// we can just return, but if it's a character
+		// we have to make sure the current buildWord ends
+		// in said character:
+		let needKill = killWildcardChar == undefined || killWildcardChar == "";
+		return buildWord && needKill ? [buildWord] :
+			buildWord && buildWord[buildWord.length - 1] == killWildcardChar ?
+			[buildWord] : [];
+	}
+
+	let finalWords = [];
+
+	// another case where we need the sub word that's inside a larger
+	// word of our trie:
+	if (killWildcardChar == "" && trie_level.finished)
+		finalWords.push(buildWord);
+
 	// the immdediate check is our killWildcardChar:
 	// if it has a value other than undefined, we need to
 	// work through it:
+	// console.log("hey", killWildcardChar, "query:", query[Qpoint], buildWord);
+
 	if (killWildcardChar != undefined) {
 
 		// our first step is that we start moving through trie_level:
 
 		for (let getSubBranches = 0; getSubBranches < trieKeys.length; getSubBranches++) {
-			
+
+			// then there's a few options:
+			// -- if the killWildcardChar == "", then we want
+			// 	to just run all of the options
+			// -- if the killWildcardChar == some char, then
+			// 	we want to make sure we don't try and run on that char
+
+			let currentTrieKey = trieKeys[getSubBranches];
+
+			//console.log(currentTrieKey);
+			let foundKillChar = killWildcardChar != "" && currentTrieKey == killWildcardChar;
+			//console.log(foundKillChar);
+
+			console.log(currentTrieKey, killWildcardChar);
+			// if (!foundKillChar && trie_level.childs[currentTrieKey].finished &&
+			// 	Object.keys(trie_level.childs[currentTrieKey].childs).length)
+			// 	finalWords.push(buildWord + currentTrieKey);
+
+			finalWords.push(...strPerms(trie_level.childs[currentTrieKey], query,
+				Qpoint + (foundKillChar ? 1 : 0), buildWord + currentTrieKey,
+				foundKillChar ? undefined : killWildcardChar));
 		}
+
+		return finalWords;
 	}
 
 	// let's check our * cases now:
 	if (query[Qpoint] == "*") {
 
+		// we know either way we do want to check all of the
+		// values in our trie:
+
+		killWildcardChar = query[Qpoint + 1] == undefined ? "" : query[Qpoint + 1];
+		Qpoint++;
+
+		for (let allCards = 0; allCards < trieKeys.length; allCards++) {
+
+			finalWords.push(...strPerms(trie_level.childs[trieKeys[allCards]],
+				query, Qpoint, buildWord + trieKeys[allCards],
+				trieKeys[allCards] == killWildcardChar ? undefined : killWildcardChar))
+		}
+	} else {
+
+		// normal pattern if no killWildcardChar exists:
+		finalWords.push(...strPerms(trie_level.childs[query[Qpoint]], query, Qpoint + 1, buildWord + query[Qpoint], killWildcardChar));
 	}
-	
-	// normal pattern if no killWildcardChar exists:
-	return strPerms(trie_level, query, ++Qpoint, killWildcardChar);
+	return finalWords;
 }
 
 
@@ -101,9 +167,9 @@ insert(trie, "atter", 3);
 insert(trie, "cip", 4);
 insert(trie, "catter", 5);
 
-console.log(trie.childs);
+//console.log(trie.childs);
 
-console.log(strPerms(trie, "c*p", 0));
+console.log(strPerms(trie, "*a*", 0));
 
 // let trieKeys = trie_level ? Object.keys(trie_level.childs) : [];
 // 	buildWord = buildWord == undefined ? "" : buildWord;
