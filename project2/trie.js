@@ -37,54 +37,64 @@ function insert(trie_level, word, bTreeLoc, word_position) {
 	All considering, we either follow the path of the character
 	or we bump into a * and then need to find the subsequent letter (if there is one)
 */
-function strPerms(trie_level, word, pos, livestar, buildWord) {
+function strPerms(trie_level, word, pos, livestar, buildWord, pwe) {
 
 	let trieKeys = trie_level ? Object.keys(trie_level.childs) : [];
 	buildWord = buildWord == undefined ? "" : buildWord;
 	let finalWords = [];
 
-	console.log("\nfind words? ", trie_level, livestar, buildWord, trieKeys.length);
+	if (!trieKeys.length) {
+		console.log('unfinished', trie_level, word[pos], buildWord);
+		// if there's no more positions in word, we can
+		// go ahead and add buildWord:
+		return word[pos] == undefined ? [buildWord] : [];
+	}
 
-	if (trieKeys.length == 0)
-		return trie_level && (word[word.length - 1] == "*") ? [buildWord] : [];
+	console.log("\n\tNEW ROUND START", pwe, pos, word[pos], "WITH", buildWord, livestar)
 
 	if (livestar) {
-		// we will keep adding livestar words and we hit "solid"
-		// meaning if we run into our word[pos] or the end of a
-		// trie, we don't the ones that don't match word[pos]
+		// time to star looking for any options while being conscious of our close character:
+	
+		// check for if we're at a part of a word that we should add:
+		if (trie_level.finished && trie_level.load > 1)
+			finalWords.push(buildWord);
 
 		for (let j = 0; j < trieKeys.length; j++) {
-			if (word[pos] == trieKeys[j]) {// stop the livestar
-				console.log("found end?", word, pos, trieKeys[j]);
-				finalWords.push(strPerms(trie_level[word[pos]], word, pos + 1, false, buildWord + word[pos]));
-				break;
+
+			console.log("\nchecking for new words", trieKeys[j], word[pos], buildWord);
+			if (trieKeys[j] == word[pos]) {
+				finalWords.push(buildWord + word[pos]);
+
+				livestar = false;
 			}
 
-			// otherwise we can continue looking for more possibilities
-			finalWords.push(...strPerms(trie_level.childs[trieKeys[j]], word, pos, livestar, buildWord + trieKeys[j]));
+				// before continuing recursively,
+				// see if there are added values we should grab
+
+			console.log(j, 'adding new portions', buildWord + trieKeys[j], trie_level.childs[trieKeys[j]], pos)
+			finalWords.push(...strPerms(trie_level.childs[trieKeys[j]], word, pos + (!livestar ? 1 : 0), livestar, buildWord + trieKeys[j], "TEST" + pos));
 		}
-	} else if (word[pos] == "*") {
-		// quickly check to see if our current trie_level is a word
-		if (trie_level.finished) // if it is, we want to add buildWords to our list:
-			finalWords.push(buildWord);
+
+		return finalWords;
+	}
+
+	if (word[pos] == "*") {
+
+		// now instead we're going to try every single path:
 
 		for (let j = 0; j < trieKeys.length; j++) {
 
-			// in this case, we move everything forward no matter what:
-			// CASING: if the * is in the first position, we actually need to 
-			// skip further
+			finalWords.push(...strPerms(trie_level.childs[trieKeys[j]], word, pos + 1, true, buildWord + trieKeys[j]));
+		
+		}
 
-			finalWords.push(...strPerms(trie_level.childs[trieKeys[j]], word, pos + (pos == 0 ? 2 : 1), true, buildWord + trieKeys[j]));
-		}
-	} else {
-		// we need to check on if the word is actually done:
-		if (word[word.length - 1] == buildWord[buildWord.length - 1])
-			finalWords.push(buildWord);
-		else {
-			// otherwise, we have a casual move through perms:
-			finalWords.push(...strPerms(trie_level.childs[word[pos]], word, pos + 1, false, buildWord + word[pos]));
-		}
+		return finalWords;
 	}
+
+	// under general circumstances, we are just go to
+	// keep going down the word pos:
+	if (word[pos])
+		finalWords.push(...strPerms(trie_level.childs[word[pos]], word, pos + 1, false, buildWord + word[pos]));
 
 	return finalWords;
 }
@@ -99,52 +109,4 @@ insert(trie, "catter", 5);
 
 console.log(trie.childs);
 
-console.log(strPerms(trie, "c*p", 0));
-
-/*
-if (livestar) { // CARE WITH LETTERS AFTER *
-		let currentChar = word[pos];
-
-		// if livestar is true, we just grab everything and anything:
-		for (let j = 0; j < trieKeys.length; j++) {
-			// if currentChar has a value, then we need to make sure that our value works against it:
-			// if we a c*p, and currentChar was a p, then we would stop
-			console.log(currentChar, trieKeys[j]);
-
-			if (currentChar == trieKeys[j]) {
-				finalWords.push(...strPerms(trie_level.childs[currentChar], word, pos + 1, false, buildWord + currentChar));
-				break;
-			}
-
-			// also check for if trie_level is a word:
-			if (trie_level.finished)
-				finalWords.push(buildWord);
-
-			// otherwise we can continue looking for more possibilities
-			finalWords.push(...strPerms(trie_level.childs[trieKeys[j]], word, pos, livestar, buildWord + trieKeys[j]));
-		}
-	} else if (word[pos] == "*") {
-		// quickly check to see if our current trie_level is a word
-		if (trie_level.finished) // if it is, we want to add buildWords to our list:
-			finalWords.push(buildWord);
-
-		for (let j = 0; j < trieKeys.length; j++) {
-
-			// in this case, we move everything forward no matter what:
-			// CASING: if the * is in the first position, we actually need to 
-			// skip further
-
-			finalWords.push(...strPerms(trie_level.childs[trieKeys[j]], word, pos + (pos == 0 ? 2 : 1), true, buildWord + trieKeys[j]));
-		}
-
-	} else {
-		console.log("finish?");
-		// we need to check on if the word is actually done:
-		if (word[word.length - 1] == buildWord[buildWord.length - 1])
-			finalWords.push(buildWord);
-		else {
-			// otherwise, we have a casual move through perms:
-			finalWords.push(...strPerms(trie_level.childs[word[pos]], word, pos + 1, false, buildWord + word[pos]));
-		}
-	}
-	*/
+console.log(strPerms(trie, "ca*", 0));
