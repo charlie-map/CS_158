@@ -66,7 +66,8 @@ function insert(trie_level, word, bTreeLoc, word_position) {
 */
 function strPerms(trie_level, query, Qpoint, buildWord, killWildcardChar) {
 
-	console.log('\n\n', buildWord, trie_level, killWildcardChar);
+	if (!trie_level) // dud word
+		return [];
 
 	buildWord = !buildWord ? "" : buildWord;
 	let trieKeys = Object.keys(trie_level.childs);
@@ -97,7 +98,6 @@ function strPerms(trie_level, query, Qpoint, buildWord, killWildcardChar) {
 	// the immdediate check is our killWildcardChar:
 	// if it has a value other than undefined, we need to
 	// work through it:
-	console.log("hey", killWildcardChar, "query:", query[Qpoint], buildWord);
 
 	if (killWildcardChar != undefined) {
 
@@ -113,9 +113,7 @@ function strPerms(trie_level, query, Qpoint, buildWord, killWildcardChar) {
 
 			let currentTrieKey = trieKeys[getSubBranches];
 
-			//console.log(currentTrieKey);
 			let foundKillChar = killWildcardChar != "" && currentTrieKey == killWildcardChar;
-			console.log(foundKillChar, killWildcardChar);
 
 			if (foundKillChar && trie_level.childs[currentTrieKey].finished &&
 				(query[Qpoint + 1] && trie_level.childs[currentTrieKey].childs[Qpoint + 1])) {
@@ -158,23 +156,24 @@ function strPerms(trie_level, query, Qpoint, buildWord, killWildcardChar) {
 }
 
 
-// insert(trie, "at", 0);
-// insert(trie, "cat", 1);
-// insert(trie, "cap", 2);
-// insert(trie, "atter", 3);
-// insert(trie, "cip", 4);
-// insert(trie, "catter", 5);
+insert(trie, "at", 0);
+insert(trie, "cat", 1);
+insert(trie, "cap", 2);
+insert(trie, "atter", 3);
+insert(trie, "cip", 4);
+insert(trie, "catter", 5);
 
 //console.log(trie.childs);
 
-//console.log("*", strPerms(trie, "*", 0));
-//console.log("*t", strPerms(trie, "*t", 0));
-//console.log("c*p", strPerms(trie, "c*p", 0));
-//console.log("a*", strPerms(trie, "a*", 0));
-//console.log("*r", strPerms(trie, "*r", 0));
-//console.log("c*", strPerms(trie, "c*", 0));
-//console.log("*t*", strPerms(trie, "*t*", 0));
-//console.log("*a*", strPerms(trie, "*a*", 0));
+console.log("*", strPerms(trie, "*", 0)); // ALL IN TRIE
+console.log("*t", strPerms(trie, "*t", 0)); // at, cat
+console.log("c*p", strPerms(trie, "c*p", 0)); // cap, cip
+console.log("a*", strPerms(trie, "a*", 0)); // at, atter
+console.log("*r", strPerms(trie, "*r", 0)); // atter, catter
+console.log("c*", strPerms(trie, "c*", 0)); // cat, catter, cap, cip
+console.log("*t*", strPerms(trie, "*t*", 0)); // at, atter, cat, catter
+console.log("*a*", strPerms(trie, "*a*", 0)); // at, atter, cat, catter, cap
+console.log("test*", strPerms(trie, "test*", 0)); // NONE
 
 module.exports = {
 	trie,
