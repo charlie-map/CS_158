@@ -21,7 +21,7 @@ const {
 	makeBQQuery,
 	BQpartition,
 	normalChar
-} = require('./queryFunc')
+} = require('./funcQuery')
 
 let pages, pageAmount, docFrequency = {};
 // declaring globally for use through multiple functions
@@ -94,8 +94,8 @@ function isPhraseMatch(pointers, qStrings) {
 
 function phraseHandle(qStrings) {
 
-	console.log(qStrings);
-	let pointers = [-1], metaDocs = [];
+	let pointers = [-1],
+		metaDocs = [];
 	for (let word = 0; word < pages[qStrings[1]].length; word++) {
 		pointers[0]++;
 
@@ -109,18 +109,18 @@ function phraseHandle(qStrings) {
 	return metaDocs;
 }
 
-function WPQfindDocs(metaDocs, termProduct, qStrings) {
+function WPQfindDocs(metaDocs, termProduct, qStrings, end) {
 	let noCurry = true;
 
-	for (let i = 1; i < qStrings.length - 1; i++) {
+	for (let i = 1; i < end; i++) {
 
 		let postPermString = qStrings[i],
 			qStringPerms = strPerms(trie, qStrings[i], 0);
 
-		if (qStringPerms.length > 1) {// we have to recur down separate paths
+		if (qStringPerms.length > 1) { // we have to recur down separate paths
 			for (let subperms = 0; subperms < qStringPerms.length; subperms++) {
 				qStrings[i] = qStringPerms[subperms];
-				metaDocs.push(...WPQfindDocs(metaDocs, termProduct, qStrings));
+				metaDocs.push(...WPQfindDocs(metaDocs, termProduct, qStrings, end + 1));
 			}
 
 			noCurry = false;
@@ -296,7 +296,7 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		} else if (query_type == 4) {
 			WQfindDocs(metaDocs, termProduct, qStrings);
 		} else {
-			WPQfindDocs(metaDocs, termProduct, qStrings);
+			WPQfindDocs(metaDocs, termProduct, qStrings, 2);
 		}
 	}
 
@@ -381,11 +381,9 @@ function cleanQuery(string, stopwords, query_type) {
 	for (let run = 0; run < string.length + 1; run++) {
 
 		// first case: we have an open something, and we need to make sure it's not a normal character before
-		console.log(string[run - 1], normalChar(string[run - 1]));
 		if ((string[run] == "(" || (string[run] == "\"" && !normalChar(string[run - 1]))) &&
 			string[run + 1] != " " /*special case for making sure there's not already a space*/ ) {
 
-			console.log("test");
 			string = string.substring(0, run) + string[run] + " " + string.substring(run + 1, string.length);
 
 			run += 2;
@@ -402,8 +400,6 @@ function cleanQuery(string, stopwords, query_type) {
 				string = string.substring(0, run) + " " + string[run] + string.substring(run + 1, string.length);
 				realCharEnd = true;
 			}
-
-			console.log(realCharEnd);
 
 			// now that we've put some space in there, we can continue working:
 			let word = string.substring(pre, run);
