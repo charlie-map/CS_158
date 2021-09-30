@@ -45,7 +45,7 @@ function findPages(string, stopwords, writer) {
 							// POS 2 in pages is the term frequency
 							pages[tempWords[wordRun]][pageTemp[tempWords[wordRun]][1]][2] = pageTemp[tempWords[wordRun]][0];
 
-							// POS 2 is the total words in our page
+							// POS 3 is the total words in our page
 							pages[tempWords[wordRun]][pageTemp[tempWords[wordRun]][1]][3] = totalWords;
 							// ^ grab totalWords
 							// which can be save as tempWords.length

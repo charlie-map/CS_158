@@ -14,5 +14,5 @@ killer kiss => 4,5
 space OR (orange AND kiss) AND kubrik => 3,2,8
 (kiss AND killer) AND (danger OR full) => 4
 test test test space => 13,2,3,8
-ki* => 4,5
-*er => 4,12,5
+ki* => 5,4
+*er => 5,4,12

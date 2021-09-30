@@ -182,7 +182,7 @@ function serializeObject(textfile, object, pageAmount) {
 	-- insert is a function that takes in the trie
 		and adds to it
 */
-function deserializeObject(input_file, half_doneOBJ, pageAmount, insert, trie) {
+function deserializeObject(input_file, half_doneOBJ, pageAmount, insert, trie, docFrequency) {
 	let start = !pageAmount && !half_doneOBJ ? input_file.indexOf("\n") : 0;
 	start = start == -1 ? 0 : start;
 	pageAmount = !pageAmount && !half_doneOBJ ? parseInt(input_file.substring(2, start - 2), 10) : pageAmount;
@@ -205,6 +205,10 @@ function deserializeObject(input_file, half_doneOBJ, pageAmount, insert, trie) {
 
 	for (let find_str = start + 1; find_str < input_file.length; find_str++) {
 		word = input_file[find_str] == "\n" ? undefined : word;
+
+		if (doc_id != undefined)
+			docFrequency[doc_id] = input_file[find_str] == ";" || input_file[find_str] == "\n" ?
+				Math.pow(docFrequency[doc_id], 2) : docFrequency[doc_id];
 		doc_id = input_file[find_str] == ";" || input_file[find_str] == "\n" ? undefined : doc_id;
 		tf = input_file[find_str] == ";" ? undefined : tf;
 		totalWords = input_file[find_str] == ";" ? undefined : totalWords;
@@ -230,7 +234,10 @@ function deserializeObject(input_file, half_doneOBJ, pageAmount, insert, trie) {
 		if (doc_id == undefined) {
 			end_index = input_file.indexOf(":", find_str);
 			doc_id = parseInt(input_file.substring(find_str, end_index), 10);
-			newOBJ[word].push([doc_id, []])
+			newOBJ[word].push([doc_id, []]);
+
+			if (!docFrequency[doc_id])
+				docFrequency[doc_id] = 0;
 			find_str += end_index - find_str + 1;
 		}
 
@@ -255,6 +262,9 @@ function deserializeObject(input_file, half_doneOBJ, pageAmount, insert, trie) {
 			end_index = input_file.indexOf("💩", find_str);
 			df = parseInt(input_file.substring(find_str, end_index), 10);
 
+			// also store solely the df for use in querying:
+			newOBJ[word][newOBJ[word].length - 1][3] = df;
+
 			// then we want to find our inverse document frequency
 			df = Math.log(pageAmount / df);
 
@@ -268,11 +278,14 @@ function deserializeObject(input_file, half_doneOBJ, pageAmount, insert, trie) {
 
 			newOBJ[word][newOBJ[word].length - 1][1].push(position);
 			position = undefined;
+
+			// we will also add to our overall document frequency for use in querying:
+			docFrequency[doc_id]++;
 			find_str += end_index - find_str;
 		}
 	}
 
-	return [newOBJ, pageAmount];
+	return [newOBJ, pageAmount, docFrequency];
 }
 
 module.exports = {

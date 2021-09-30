@@ -23,7 +23,7 @@ const {
 	normalChar
 } = require('./queryFunc')
 
-let pages, pageAmount;
+let pages, pageAmount, docFrequency = {};
 // declaring globally for use through multiple functions
 
 function grabDocs(word, needPos) {
@@ -180,7 +180,7 @@ function WQfindDocs(metaDocs, termProduct, qStrings) {
 				// the metaDoc at the position:
 
 				metaDocs.splice(midDoc, 0, newDocs[docI][0]);
-				termProduct.splice(midDoc, 0, newDocs[docI][2]);
+				termProduct.splice(midDoc, 0, docFrequency[newDocs[docI][0]]);
 			}
 
 			// now the metaDoc will have all of the terms
@@ -308,7 +308,8 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 		let chunk;
 
 		while (null !== (chunk = source.read())) {
-			pages = deserializeObject(chunk.toString(), pages, pageAmount, insert, trie);
+			pages = deserializeObject(chunk.toString(), pages, pageAmount, insert, trie, docFrequency);
+			docFrequency = pages[2];
 			pageAmount = pages[1];
 			pages = pages[0];
 		}
