@@ -4,26 +4,24 @@ let trie = {
 	childs: []
 };
 
-function insert(trie_level, word, bTreeLoc, word_position) {
+function insert(trie_level, word, docID, weight, word_position) {
 	word_position = word_position == undefined ? 0 : word_position;
 
 	if (word_position < word.length) {
 		//grab first character
-		if (typeof trie_level.childs[word[word_position]] == "undefined") {
+		if (trie_level.childs[word[word_position]] == undefined) {
 			let finished = word_position == word.length - 1 ? 1 : 0;
 			trie_level.childs[word[word_position]] = {
 				load: 0,
 				finished: finished,
-				bTree: finished ? [bTreeLoc] : [],
 				childs: []
 			};
 		} else if (word_position == word.length - 1) {
 			trie_level.childs[word[word_position]].finished++;
-			trie_level.childs[word[word_position]].bTree.push(bTreeLoc);
 		}
 
 		trie_level.childs[word[word_position]].load++;
-		insert(trie_level.childs[word[word_position]], word, bTreeLoc, word_position + 1);
+		insert(trie_level.childs[word[word_position]], word, docID, weight, word_position + 1);
 	}
 
 	return trie_level;
@@ -71,20 +69,21 @@ function strPerms(trie_level, query, Qpoint, buildWord, killWildcardChar) {
 
 	buildWord = !buildWord ? "" : buildWord;
 	let trieKeys = Object.keys(trie_level.childs);
-	// console.log(trieKeys.length == 0);
 
 	// if there are no children on trie_level, 
 	// we can go ahead and return whereever we are:
 	if (trieKeys.length == 0 || (query[Qpoint] == undefined &&
-		killWildcardChar == undefined)) {
+			killWildcardChar == undefined)) {
 		// we only want to return base on what killWildcardChar is:
 		// if killWildcardChar is undefined or "", 
 		// we can just return, but if it's a character
 		// we have to make sure the current buildWord ends
 		// in said character:
-		let needKill = killWildcardChar == undefined || killWildcardChar == "";
+		let needKill = killWildcardChar == "";
 		return buildWord && needKill ? [buildWord] :
-			buildWord && buildWord[buildWord.length - 1] == killWildcardChar ?
+			buildWord && trie_level.finished &&
+				(buildWord[buildWord.length - 1] == query[Qpoint] ||
+				query[Qpoint] == undefined) ?
 			[buildWord] : [];
 	}
 
@@ -143,7 +142,7 @@ function strPerms(trie_level, query, Qpoint, buildWord, killWildcardChar) {
 		for (let allCards = 0; allCards < trieKeys.length; allCards++) {
 
 			finalWords.push(...strPerms(trie_level.childs[trieKeys[allCards]],
-				query, Qpoint + (trieKeys[allCards] == killWildcardChar ? 1: 0),
+				query, Qpoint + (trieKeys[allCards] == killWildcardChar ? 1 : 0),
 				buildWord + trieKeys[allCards],
 				trieKeys[allCards] == killWildcardChar ? undefined : killWildcardChar))
 		}
@@ -156,24 +155,27 @@ function strPerms(trie_level, query, Qpoint, buildWord, killWildcardChar) {
 }
 
 
-insert(trie, "at", 0);
-insert(trie, "cat", 1);
-insert(trie, "cap", 2);
-insert(trie, "atter", 3);
-insert(trie, "cip", 4);
-insert(trie, "catter", 5);
+// insert(trie, "at");
+// insert(trie, "cat");
+// insert(trie, "cap");
+// insert(trie, "atter");
+// insert(trie, "cip");
+// insert(trie, "catter");
+// insert(trie, "ape");
+// insert(trie, "aper");
 
-//console.log(trie.childs);
+// //console.log(trie.childs);
 
-console.log("*", strPerms(trie, "*", 0)); // ALL IN TRIE
-console.log("*t", strPerms(trie, "*t", 0)); // at, cat
-console.log("c*p", strPerms(trie, "c*p", 0)); // cap, cip
-console.log("a*", strPerms(trie, "a*", 0)); // at, atter
-console.log("*r", strPerms(trie, "*r", 0)); // atter, catter
-console.log("c*", strPerms(trie, "c*", 0)); // cat, catter, cap, cip
-console.log("*t*", strPerms(trie, "*t*", 0)); // at, atter, cat, catter
-console.log("*a*", strPerms(trie, "*a*", 0)); // at, atter, cat, catter, cap
-console.log("test*", strPerms(trie, "test*", 0)); // NONE
+// console.log("*", strPerms(trie, "*", 0)); // ALL IN TRIE
+// console.log("*t", strPerms(trie, "*t", 0)); // at, cat
+// console.log("c*p", strPerms(trie, "c*p", 0)); // cap, cip
+// console.log("a*", strPerms(trie, "a*", 0)); // at, atter, ape, aper
+// console.log("*r", strPerms(trie, "*r", 0)); // atter, aper, catter
+// console.log("c*", strPerms(trie, "c*", 0)); // cat, catter, cap, cip
+// console.log("*t*", strPerms(trie, "*t*", 0)); // at, atter, cat, catter
+// console.log("*a*", strPerms(trie, "*a*", 0)); // at, atter, ape, aper, cat, catter, cap
+// console.log("*er", strPerms(trie, "*er", 0)); // atter, aper, catter
+// console.log("test*", strPerms(trie, "test*", 0)); // NONE
 
 module.exports = {
 	trie,
