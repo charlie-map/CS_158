@@ -148,7 +148,7 @@ function normalChar(char) {
 	if (!char)
 		return;
 	char = char.charCodeAt(0);
-	return (char >= 48 && char <= 57) || (char >= 65 && char <= 90) || (char >= 97 && char <= 122);
+	return (char >= 48 && char <= 57) || (char >= 65 && char <= 90) || (char >= 97 && char <= 122) || char == 42;
 }
 
 module.exports = {

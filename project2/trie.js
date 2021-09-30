@@ -176,6 +176,7 @@ function strPerms(trie_level, query, Qpoint, buildWord, killWildcardChar) {
 // console.log("*a*", strPerms(trie, "*a*", 0)); // at, atter, ape, aper, cat, catter, cap
 // console.log("*er", strPerms(trie, "*er", 0)); // atter, aper, catter
 // console.log("test*", strPerms(trie, "test*", 0)); // NONE
+// console.log("aper", strPerms(trie, "aper", 0)); // aper
 
 module.exports = {
 	trie,

@@ -92,6 +92,52 @@ function isPhraseMatch(pointers, qStrings) {
 	return isPair;
 }
 
+function phraseHandle(qStrings) {
+
+	console.log(qStrings);
+	let pointers = [-1], metaDocs = [];
+	for (let word = 0; word < pages[qStrings[1]].length; word++) {
+		pointers[0]++;
+
+		if (!pages[qStrings[1]][pointers[0]])
+			break;
+
+		if (isPhraseMatch(pointers, qStrings))
+			metaDocs.push(pages[qStrings[1]][pointers[0]][0]);
+	}
+
+	return metaDocs;
+}
+
+function WPQfindDocs(metaDocs, termProduct, qStrings) {
+	let noCurry = true;
+
+	for (let i = 1; i < qStrings.length - 1; i++) {
+
+		let postPermString = qStrings[i],
+			qStringPerms = strPerms(trie, qStrings[i], 0);
+
+		if (qStringPerms.length > 1) {// we have to recur down separate paths
+			for (let subperms = 0; subperms < qStringPerms.length; subperms++) {
+				qStrings[i] = qStringPerms[subperms];
+				metaDocs.push(...WPQfindDocs(metaDocs, termProduct, qStrings));
+			}
+
+			noCurry = false;
+		}
+
+		// recursion done
+		qStrings[i] = postPermString;
+	}
+
+	// if we get passed this, then we're at the point that we can start
+	// testing strings:
+	if (noCurry)
+		metaDocs.push(...phraseHandle(qStrings));
+
+	return metaDocs;
+}
+
 function findComparatives(qs, start) {
 	let bq_type, cmp = [];
 	for (let strRun = start; strRun < qs.length; strRun++) {
@@ -246,21 +292,11 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		// grabDocs("word", true); to emphasize that we need positions connected
 
 		if (query_type == 2) {
-
-			let pointers = [-1];
-			for (let word = 0; word < pages[qStrings[1]].length; word++) {
-				pointers[0]++;
-
-				if (!pages[qStrings[1]][pointers[0]])
-					break;
-
-				if (isPhraseMatch(pointers, qStrings))
-					metaDocs.push(pages[qStrings[1]][pointers[0]][0]);
-			}
+			metaDocs = phraseHandle(qStrings);
+		} else if (query_type == 4) {
+			WQfindDocs(metaDocs, termProduct, qStrings);
 		} else {
-			if (query_type == 4) {
-				WQfindDocs(metaDocs, termProduct, qStrings);
-			}
+			WPQfindDocs(metaDocs, termProduct, qStrings);
 		}
 	}
 
@@ -316,7 +352,6 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 	});
 
 	source.on('end', () => {
-		console.log(trie);
 		let stringQueries = fs.readFileSync(query_page, 'utf8');
 		let line_start = 0;
 
@@ -346,9 +381,11 @@ function cleanQuery(string, stopwords, query_type) {
 	for (let run = 0; run < string.length + 1; run++) {
 
 		// first case: we have an open something, and we need to make sure it's not a normal character before
+		console.log(string[run - 1], normalChar(string[run - 1]));
 		if ((string[run] == "(" || (string[run] == "\"" && !normalChar(string[run - 1]))) &&
 			string[run + 1] != " " /*special case for making sure there's not already a space*/ ) {
 
+			console.log("test");
 			string = string.substring(0, run) + string[run] + " " + string.substring(run + 1, string.length);
 
 			run += 2;
@@ -365,6 +402,8 @@ function cleanQuery(string, stopwords, query_type) {
 				string = string.substring(0, run) + " " + string[run] + string.substring(run + 1, string.length);
 				realCharEnd = true;
 			}
+
+			console.log(realCharEnd);
 
 			// now that we've put some space in there, we can continue working:
 			let word = string.substring(pre, run);
