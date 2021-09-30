@@ -6,11 +6,10 @@ const {
 	deserializeObject
 } = require('../project1/utils');
 const {
-	btree,
+	trie,
 	insert,
-	searchB,
-	update
-} = require('./btree.js');
+	strPerms
+} = require('./trie');
 
 let pages, pageAmount;
 // declaring globally for use through multiple functions
@@ -86,7 +85,6 @@ function isPhraseMatch(pointers, qStrings) {
 		if (pointers[find] == undefined)
 			pointers[find] = 0;
 
-		console.log("starting next page", qStrings[find + 1], pages[qStrings[find + 1]]);
 		let currPage = pages[qStrings[find + 1]];
 
 		while (currPage[pointers[find]] && currPage[pointers[find]][0] < match) {
@@ -204,7 +202,8 @@ function queryIndexer(query_string, stopwords, docWriter) {
 			if there are any parentheses, we will need to construct a sub array
 			to work through those sub problems of the query first
 	*/
-	let metaDocs = [];
+	let metaDocs = [],
+		termProduct = [];
 	if (query_type == 0 || query_type == 1 || query_type == 3) {
 		function findComparatives(qs, start) {
 			let bq_type, cmp = [];
@@ -250,10 +249,7 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		// for that we will also have a second parameter for grabDocs:
 		// grabDocs("word", true); to emphasize that we need positions connected
 
-		console.log(query_type, qStrings);
-
 		if (query_type == 2) {
-			console.log('queries', qStrings[1], pages[qStrings[1]]);
 
 			let pointers = [-1];
 			for (let word = 0; word < pages[qStrings[1]].length; word++) {
@@ -266,32 +262,91 @@ function queryIndexer(query_string, stopwords, docWriter) {
 					metaDocs.push(pages[qStrings[1]][pointers[0]][0]);
 			}
 		} else {
-			
+			if (query_type == 4) {
+				// just a single query, so we'll go ahead and
+				// get all the permutations with:
+				console.log(qStrings[0]);
+				let queryWordPerms = strPerms(trie, qStrings[0], 0);
+				console.log("returns", queryWordPerms);
+
+				for (let checkQ = 0; checkQ < queryWordPerms.length; checkQ++) {
+					let newDocs = pages[stemmer(queryWordPerms[checkQ])];
+					console.log(stemmer(queryWordPerms[checkQ]), newDocs);
+
+					/*
+						for a solo word, we want to return all the documents,
+						but we need to ensure each document is in order of
+						highest weight, so first we will make a metaDoc, and then
+						get into the process of sorting each choice based on weight
+						AS we are making the metaDoc
+						-- POSITION does not matter for single word WQ
+					*/
+
+					// for each document in newDocs, we need to see if
+					// it's already in metaDocs:
+
+					for (let docI = 0; docI < newDocs.length; docI++) {
+
+						let lowDoc = 0,
+							highDoc = metaDocs.length;
+						let midDoc = Math.floor((lowDoc + highDoc) / 2);
+						// we will search through the current metaDocs
+						// to see if our docID is already in there:
+
+						while (lowDoc < highDoc && metaDocs[midDoc] != newDocs[docI][0]) {
+
+							// see if midDoc is too high, or too low:
+
+							lowDoc = metaDocs[midDoc] < newDocs[docI][0] ? lowDoc : midDoc + 1;
+							highDoc = metaDocs[midDoc] < newDocs[docI][0] ? midDoc - 1 : highDoc;
+
+							midDoc = Math.floor((lowDoc + highDoc) / 2);
+						}
+
+						// now we have either found a doc in metaDocs, or
+						// we haven't -- if we have let's add to the weighting
+						// for that document:
+						if (metaDocs[midDoc] == newDocs[docI][0])
+							termProduct[midDoc] += newDocs[docI][2];
+						else { // otherwise we start our new term:
+							// since midDoc will be where we want to insert
+							// our new doc, we can splice into
+							// the metaDoc at the position:
+
+							metaDocs.splice(midDoc, 0, newDocs[docI][0]);
+							termProduct.splice(midDoc, 0, newDocs[docI][2]);
+						}
+
+						// now the metaDoc will have all of the terms
+						// and termProduct will have all the weights
+					}
+				}
+			}
 		}
 	}
 
 	// before we add the docs, go ahead and work out the cosine similarity:
 	// first we need to calculate the dot product of
-	let termProduct = [];
 	// ^ this will hold the degree of match with the user query and meta docs
-	for (let doc = 0; doc < metaDocs.length; doc++) {
-		termProduct[doc] = 0;
+	if (query_type != 4)
+		for (let doc = 0; doc < metaDocs.length; doc++) {
+			termProduct[doc] = 0;
 
-		for (let s = 0; s < qStrings.length; s++) {
-			let qs = qStrings[s];
-			if (qs == "*" || qs == "\"" || qs == "(" || qs == ")" || qs == "AND" || qs == "OR")
-				continue; // skip if not actual word
+			for (let s = 0; s < qStrings.length; s++) {
+				let qs = qStrings[s];
+				if (qs == "*" || qs == "\"" || qs == "(" || qs == ")" || qs == "AND" || qs == "OR")
+					continue; // skip if not actual word
 
-			// before we do any big math, need to normalize the user term on all words in query:
-			if (doc == 0) // only do this the first time
-				userTermScores[qs] /= allWords;
+				// before we do any big math, need to normalize the user term on all words in query:
+				if (doc == 0) // only do this the first time
+					userTermScores[qs] /= allWords;
 
-			// now we can do the math for each document:
-			// we'll need to find the document position in the page
-			let searcher = search(pages[qs], metaDocs[doc]);
-			termProduct[doc] += (userTermScores[qs] ? userTermScores[qs] : 0) * (searcher == 0 ? searcher : searcher[0]);
+				// now we can do the math for each document:
+				// we'll need to find the document position in the page
+				let searcher = search(pages[qs], metaDocs[doc]);
+				termProduct[doc] += (userTermScores[qs] ? userTermScores[qs] : 0) * (searcher == 0 ? searcher : searcher[0]);
+			}
 		}
-	}
 
 
 	// sort meta docs on whichever is highest first:
@@ -314,14 +369,14 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 		let chunk;
 
 		while (null !== (chunk = source.read())) {
-			pages = deserializeObject(chunk.toString(), pages, pageAmount);
+			pages = deserializeObject(chunk.toString(), pages, pageAmount, insert, trie);
 			pageAmount = pages[1];
 			pages = pages[0];
 		}
 	});
 
 	source.on('end', () => {
-		console.log(pageAmount, pages);
+		console.log(trie);
 		let stringQueries = fs.readFileSync(query_page, 'utf8');
 		let line_start = 0;
 

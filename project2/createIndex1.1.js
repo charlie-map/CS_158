@@ -75,7 +75,7 @@ function findPages(string, stopwords, writer) {
 				if ((string[i] == " " || string[i] == "\n" || string[i] == "\t" ||
 						string[i] == "<") && buffer == "text" && word.length) {
 					if (word.length < 25) {
-						let stem_word = stemmer(word),
+						let stem_word = word, //stemmer(word), stemming during querying
 							stem_page = pages[stem_word];
 						page_id = parseInt(page_id, 10);
 						if (!stem_page) {

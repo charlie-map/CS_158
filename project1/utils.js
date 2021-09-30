@@ -1,4 +1,5 @@
 const fs = require('fs');
+const stemmer = require('porter-stemmer').stemmer;
 const skipWork = require('./skipList');
 
 function arrAndGate(args) {
@@ -175,7 +176,13 @@ function serializeObject(textfile, object, pageAmount) {
 	}
 }
 
-function deserializeObject(input_file, half_doneOBJ, pageAmount) {
+/*
+	insert and trie are related to our trie:
+	-- trie is the current trie will be inserting on,
+	-- insert is a function that takes in the trie
+		and adds to it
+*/
+function deserializeObject(input_file, half_doneOBJ, pageAmount, insert, trie) {
 	let start = !pageAmount && !half_doneOBJ ? input_file.indexOf("\n") : 0;
 	start = start == -1 ? 0 : start;
 	pageAmount = !pageAmount && !half_doneOBJ ? parseInt(input_file.substring(2, start - 2), 10) : pageAmount;
@@ -214,6 +221,8 @@ function deserializeObject(input_file, half_doneOBJ, pageAmount) {
 			word = input_file.substring(find_str, end_index);
 			find_str += end_index - find_str + 1;
 
+			insert(trie, word); // load into our trie UNSTEMMED
+			word = stemmer(word); // then stem and load into our object
 			newOBJ[word] = [];
 		}
 
@@ -248,6 +257,7 @@ function deserializeObject(input_file, half_doneOBJ, pageAmount) {
 
 			// then we want to find our inverse document frequency
 			df = Math.log(pageAmount / df);
+
 			newOBJ[word][newOBJ[word].length - 1][2] = tf * df;
 			find_str += end_index - find_str + 2;
 		}
