@@ -45,11 +45,11 @@ function search(currPage, doc_id, low, high) {
 	return search(currPage, doc_id, lower, higher);
 }
 
-function sortDocs(docs, dotProds, low, high) {
+function sortDocs(docs, dotProds, low, high, isLower) {
 	if (low < high) {
-		let pivot = docPart(docs, dotProds, low, high);
-		sortDocs(docs, dotProds, pivot + 1, high);
-		sortDocs(docs, dotProds, low, pivot - 1)
+		let pivot = docPart(docs, dotProds, low, high, isLower);
+		sortDocs(docs, dotProds, pivot + 1, high, isLower);
+		sortDocs(docs, dotProds, low, pivot - 1, isLower)
 	}
 }
 
@@ -64,11 +64,19 @@ function swap(arr1, arr2, val1, val2) {
 	arr2[val2] = b2;
 }
 
-function docPart(docs, dotProds, low, pivot) {
+function WQisLower(arr, v1, v2) {
+	return arr[v1][1] > arr[v2][1];
+}
+
+function casualLower(arr, v1, v2) {
+	return arr[v1] > arr[v2];
+}
+
+function docPart(docs, dotProds, low, pivot, isLower) {
 	let lowest = low - 1;
 
 	for (let j = low; j < pivot; j++) {
-		if (dotProds[j] > dotProds[pivot]) {
+		if (isLower ? isLower(docs, j, pivot) : casualLower(dotProds, j, pivot)) {
 			swap(docs, dotProds, ++lowest, j);
 		}
 	}
@@ -159,5 +167,6 @@ module.exports = {
 	docPart,
 	makeBQQuery,
 	BQpartition,
-	normalChar
+	normalChar,
+	WQisLower
 }

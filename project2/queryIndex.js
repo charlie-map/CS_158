@@ -20,7 +20,8 @@ const {
 	docPart,
 	makeBQQuery,
 	BQpartition,
-	normalChar
+	normalChar,
+	WQisLower
 } = require('./funcQuery')
 
 let pages, pageAmount, docFrequency = {};
@@ -92,7 +93,7 @@ function isPhraseMatch(pointers, qStrings) {
 	return isPair;
 }
 
-function phraseHandle(qStrings) {
+function phraseHandle(qStrings, needTFIDF) {
 
 	let pointers = [-1],
 		metaDocs = [];
@@ -102,8 +103,12 @@ function phraseHandle(qStrings) {
 		if (!pages[qStrings[1]][pointers[0]])
 			break;
 
-		if (isPhraseMatch(pointers, qStrings))
-			metaDocs.push(pages[qStrings[1]][pointers[0]][0]);
+		if (isPhraseMatch(pointers, qStrings)) {
+			metaDocs.push(needTFIDF ? [pages[qStrings[1]][pointers[0]][0],
+					pages[qStrings[1]][pointers[0]][2]
+				] :
+				pages[qStrings[1]][pointers[0]][0]);
+		}
 	}
 
 	return metaDocs;
@@ -112,7 +117,7 @@ function phraseHandle(qStrings) {
 function WPQfindDocs(metaDocs, termProduct, qStrings, end) {
 	let noCurry = true;
 
-	for (let i = 1; i < end; i++) {
+	for (let i = 1; i < end && end < qStrings.length; i++) {
 
 		let postPermString = qStrings[i],
 			qStringPerms = strPerms(trie, qStrings[i], 0);
@@ -133,9 +138,42 @@ function WPQfindDocs(metaDocs, termProduct, qStrings, end) {
 	// if we get passed this, then we're at the point that we can start
 	// testing strings:
 	if (noCurry)
-		metaDocs.push(...phraseHandle(qStrings));
+		metaDocs.push(...phraseHandle(qStrings, 1));
 
-	return metaDocs;
+	// down here we need to make sure to only select the highest value term
+	// from each document -- the doc must be unique, so we'll try this using
+	// our idf:
+	// this process will be rather slow since the branching of the tree
+	// will force the computer to decide at every branch and look at
+	// each of these values
+	// we are going to trade space for time to make this process slightly
+	// faster by using an object to store values once we have them:
+
+	// we'll use to pointer to take doc ID's and return a point
+	// into a position into subDoc:
+	let pointer = {};
+	termProduct = [];
+
+	for (let completeDocs = 0; completeDocs < metaDocs.length; completeDocs++) {
+		// THREE CASES for our document:
+		// 1. we haven't seen it yet, so go ahead and grab the doc frequency
+		//	and place that into our term product
+		// 2. we've seen it, but it's lower than our current, then we ignore
+		// 	it and keep looking
+		// 3. if we've seen it and it's higher than our previous doc,
+		//	then we need to update to use the new, higher doc frequency
+
+		if (pointer[metaDocs[completeDocs][0]] == undefined) {
+			termProduct.push(metaDocs[completeDocs]);
+			pointer[metaDocs[completeDocs][0]] = termProduct.length - 1;
+
+			continue;
+		} else if (termProduct[pointer[metaDocs[completeDocs][0]]][1] < metaDocs[completeDocs][1]) {
+			termProduct[pointer[metaDocs[completeDocs][0]]][1] = metaDocs[completeDocs][1];
+		}
+	}
+
+	return termProduct;
 }
 
 function findComparatives(qs, start) {
@@ -296,7 +334,7 @@ function queryIndexer(query_string, stopwords, docWriter) {
 		} else if (query_type == 4) {
 			WQfindDocs(metaDocs, termProduct, qStrings);
 		} else {
-			WPQfindDocs(metaDocs, termProduct, qStrings, 2);
+			metaDocs = WPQfindDocs(metaDocs, termProduct, qStrings, 2);
 		}
 	}
 
@@ -323,10 +361,19 @@ function queryIndexer(query_string, stopwords, docWriter) {
 			}
 		}
 
-
 	// sort meta docs on whichever is highest first:
-	sortDocs(metaDocs, termProduct, 0, termProduct.length - 1);
-	docWriter.write(`${query_string} => ${metaDocs}\n`)
+	sortDocs(metaDocs, termProduct, 0, termProduct.length - 1,
+		query_type == 5 ? WQisLower : 0);
+
+	docWriter.write(`${query_string} => `);
+	for (let writeDocs = 0; writeDocs < metaDocs.length; writeDocs++) {
+		if (metaDocs[writeDocs].length)
+			docWriter.write(`${metaDocs[writeDocs][0]}${writeDocs == metaDocs.length - 1 ?
+				"\n" : ", "}`);
+		else
+			docWriter.write(`${metaDocs[writeDocs]}${writeDocs == metaDocs.length - 1 ?
+				"\n" : ", "}`);
+	}
 }
 
 function findQueries(skiplist_file, query_page, stopwords, doc_out) {
