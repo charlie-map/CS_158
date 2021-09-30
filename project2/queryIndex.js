@@ -5,11 +5,23 @@ const {
 	arrOrGate,
 	deserializeObject
 } = require('../project1/utils');
+
 const {
 	trie,
 	insert,
 	strPerms
 } = require('./trie');
+
+const {
+	findMatch,
+	search,
+	sortDocs,
+	swap,
+	docPart,
+	makeBQQuery,
+	BQpartition,
+	normalChar
+} = require('./queryFunc')
 
 let pages, pageAmount;
 // declaring globally for use through multiple functions
@@ -28,49 +40,6 @@ function grabDocs(word, needPos) {
 	}
 
 	return docs;
-}
-
-function findMatch(pos, range, wordLen, array, low, high) {
-	low = low == undefined ? 0 : low;
-	high = high == undefined ? array.length : high;
-	if (low > high)
-		return array[low] - wordLen <= pos + range && array[low] - wordLen >= pos - range;
-
-	// search the array for the pos:
-	// find middle:
-	let mid = Math.floor((low + high) * 0.5);
-
-	// check middle for if we should go higher or lower:
-	if (array[mid] - wordLen <= pos + range && array[mid] - wordLen >= pos - range) {
-		// we're done!
-		return true;
-	} else {
-		// decide if we're lower or higher than our range:
-		let lower = array[mid] - wordLen < pos - range ? low : mid + 1;
-		let higher = array[mid] - wordLen > pos + range ? high : mid - 1;
-		return findMatch(pos, range, wordLen, array, lower, higher);
-	}
-}
-
-function search(currPage, doc_id, low, high) {
-	if (!currPage || !doc_id)
-		return 0;
-	low = low == undefined ? 0 : low;
-	high = high == undefined ? currPage.length : high;
-
-	if (low > high || high >= currPage.length) {
-		return currPage[low][0] == doc_id ? currPage[low] : 0;
-	}
-
-	// find middle:
-	let mid = Math.floor((low + high) * 0.5);
-
-	if (currPage[mid][0] == doc_id)
-		return currPage[mid];
-
-	let lower = currPage[mid][0] > doc_id ? low : mid + 1;
-	let higher = currPage[mid][0] > doc_id ? mid - 1 : high;
-	return search(currPage, doc_id, lower, higher);
 }
 
 function isPhraseMatch(pointers, qStrings) {
@@ -123,36 +92,101 @@ function isPhraseMatch(pointers, qStrings) {
 	return isPair;
 }
 
-function sortDocs(docs, dotProds, low, high) {
-	if (low < high) {
-		let pivot = docPart(docs, dotProds, low, high);
-		sortDocs(docs, dotProds, pivot + 1, high);
-		sortDocs(docs, dotProds, low, pivot - 1)
+function findComparatives(qs, start) {
+	let bq_type, cmp = [];
+	for (let strRun = start; strRun < qs.length; strRun++) {
+		// if we find a close parenthesis, we want to end our current level:
+		if (qs[strRun] == ")")
+			return [cmp, strRun];
+
+		// our second thing we look for is open parentheses, if we see one,
+		// we want to go into a sub findComparatives
+		if (qs[strRun] == "(") {
+			let cmpRe = findComparatives(qs, strRun + 1);
+			if (cmpRe[0].length)
+				cmp.push(cmpRe[0][0]);
+			else if (!cmpRe[0].length)
+				cmp.push(cmpRe[0]);
+			strRun = cmpRe[1]
+		} else if (qs[strRun] == "AND" || qs[strRun] == "OR") {
+			bq_type = qs[strRun] == "AND" ? 2 : qs[strRun] == "OR" ? 1 : undefined;
+			continue;
+		} else {
+			// the next step is constanly adding to cmp if none of the above happen
+			cmp.push(grabDocs(qs[strRun]));
+		}
+
+		// at this point we need to check bq_type,
+		// if it has a value, then we need to do something to the cmp,
+		// otherwise nothing happens and we keep going
+
+		// based on the generizability of the gate operations,
+		// we can throw whatever is inside of cmp into there
+
+		if (bq_type == 2) {
+			cmp = [arrAndGate(cmp)];
+		} else if (bq_type == 1)
+			cmp = [arrOrGate(cmp)];
 	}
+	return cmp;
 }
 
-function swap(arr1, arr2, val1, val2) {
-	let b1 = arr1[val1],
-		b2 = arr2[val1];
+function WQfindDocs(metaDocs, termProduct, qStrings) {
+	// just a single query, so we'll go ahead and
+	// get all the permutations with:
+	let queryWordPerms = strPerms(trie, qStrings[0], 0);
 
-	arr1[val1] = arr1[val2];
-	arr2[val1] = arr2[val2];
+	for (let checkQ = 0; checkQ < queryWordPerms.length; checkQ++) {
+		let newDocs = pages[stemmer(queryWordPerms[checkQ])];
 
-	arr1[val2] = b1;
-	arr2[val2] = b2;
-}
+		/*
+			for a solo word, we want to return all the documents,
+			but we need to ensure each document is in order of
+			highest weight, so first we will make a metaDoc, and then
+			get into the process of sorting each choice based on weight
+			AS we are making the metaDoc
+			-- POSITION does not matter for single word WQ
+		*/
 
-function docPart(docs, dotProds, low, pivot) {
-	let lowest = low - 1;
+		// for each document in newDocs, we need to see if
+		// it's already in metaDocs:
 
-	for (let j = low; j < pivot; j++) {
-		if (dotProds[j] > dotProds[pivot]) {
-			swap(docs, dotProds, ++lowest, j);
+		for (let docI = 0; docI < newDocs.length; docI++) {
+
+			let lowDoc = 0,
+				highDoc = metaDocs.length;
+			let midDoc = Math.floor((lowDoc + highDoc) / 2);
+			// we will search through the current metaDocs
+			// to see if our docID is already in there:
+
+			while (lowDoc < highDoc && metaDocs[midDoc] != newDocs[docI][0]) {
+
+				// see if midDoc is too high, or too low:
+
+				lowDoc = metaDocs[midDoc] < newDocs[docI][0] ? lowDoc : midDoc + 1;
+				highDoc = metaDocs[midDoc] < newDocs[docI][0] ? midDoc - 1 : highDoc;
+
+				midDoc = Math.floor((lowDoc + highDoc) / 2);
+			}
+
+			// now we have either found a doc in metaDocs, or
+			// we haven't -- if we have let's add to the weighting
+			// for that document:
+			if (metaDocs[midDoc] == newDocs[docI][0])
+				termProduct[midDoc] += newDocs[docI][2];
+			else { // otherwise we start our new term:
+				// since midDoc will be where we want to insert
+				// our new doc, we can splice into
+				// the metaDoc at the position:
+
+				metaDocs.splice(midDoc, 0, newDocs[docI][0]);
+				termProduct.splice(midDoc, 0, newDocs[docI][2]);
+			}
+
+			// now the metaDoc will have all of the terms
+			// and termProduct will have all the weights
 		}
 	}
-
-	swap(docs, dotProds, ++lowest, pivot);
-	return lowest;
 }
 
 function queryIndexer(query_string, stopwords, docWriter) {
@@ -204,47 +238,9 @@ function queryIndexer(query_string, stopwords, docWriter) {
 	*/
 	let metaDocs = [],
 		termProduct = [];
-	if (query_type == 0 || query_type == 1 || query_type == 3) {
-		function findComparatives(qs, start) {
-			let bq_type, cmp = [];
-			for (let strRun = start; strRun < qs.length; strRun++) {
-				// if we find a close parenthesis, we want to end our current level:
-				if (qs[strRun] == ")")
-					return [cmp, strRun];
-
-				// our second thing we look for is open parentheses, if we see one,
-				// we want to go into a sub findComparatives
-				if (qs[strRun] == "(") {
-					let cmpRe = findComparatives(qs, strRun + 1);
-					if (cmpRe[0].length)
-						cmp.push(cmpRe[0][0]);
-					else if (!cmpRe[0].length)
-						cmp.push(cmpRe[0]);
-					strRun = cmpRe[1]
-				} else if (qs[strRun] == "AND" || qs[strRun] == "OR") {
-					bq_type = qs[strRun] == "AND" ? 2 : qs[strRun] == "OR" ? 1 : undefined;
-					continue;
-				} else {
-					// the next step is constanly adding to cmp if none of the above happen
-					cmp.push(grabDocs(qs[strRun]));
-				}
-
-				// at this point we need to check bq_type,
-				// if it has a value, then we need to do something to the cmp,
-				// otherwise nothing happens and we keep going
-
-				// based on the generizability of the gate operations,
-				// we can throw whatever is inside of cmp into there
-
-				if (bq_type == 2) {
-					cmp = [arrAndGate(cmp)];
-				} else if (bq_type == 1)
-					cmp = [arrOrGate(cmp)];
-			}
-			return cmp;
-		}
+	if (query_type == 0 || query_type == 1 || query_type == 3)
 		metaDocs = findComparatives(qStrings, 0)[0];
-	} else {
+	else {
 		// with phrase queries, we need to document positions as well, so
 		// for that we will also have a second parameter for grabDocs:
 		// grabDocs("word", true); to emphasize that we need positions connected
@@ -263,64 +259,7 @@ function queryIndexer(query_string, stopwords, docWriter) {
 			}
 		} else {
 			if (query_type == 4) {
-				// just a single query, so we'll go ahead and
-				// get all the permutations with:
-				console.log(qStrings[0]);
-				let queryWordPerms = strPerms(trie, qStrings[0], 0);
-				console.log("returns", queryWordPerms);
-
-				for (let checkQ = 0; checkQ < queryWordPerms.length; checkQ++) {
-					let newDocs = pages[stemmer(queryWordPerms[checkQ])];
-					console.log(stemmer(queryWordPerms[checkQ]), newDocs);
-
-					/*
-						for a solo word, we want to return all the documents,
-						but we need to ensure each document is in order of
-						highest weight, so first we will make a metaDoc, and then
-						get into the process of sorting each choice based on weight
-						AS we are making the metaDoc
-						-- POSITION does not matter for single word WQ
-					*/
-
-					// for each document in newDocs, we need to see if
-					// it's already in metaDocs:
-
-					for (let docI = 0; docI < newDocs.length; docI++) {
-
-						let lowDoc = 0,
-							highDoc = metaDocs.length;
-						let midDoc = Math.floor((lowDoc + highDoc) / 2);
-						// we will search through the current metaDocs
-						// to see if our docID is already in there:
-
-						while (lowDoc < highDoc && metaDocs[midDoc] != newDocs[docI][0]) {
-
-							// see if midDoc is too high, or too low:
-
-							lowDoc = metaDocs[midDoc] < newDocs[docI][0] ? lowDoc : midDoc + 1;
-							highDoc = metaDocs[midDoc] < newDocs[docI][0] ? midDoc - 1 : highDoc;
-
-							midDoc = Math.floor((lowDoc + highDoc) / 2);
-						}
-
-						// now we have either found a doc in metaDocs, or
-						// we haven't -- if we have let's add to the weighting
-						// for that document:
-						if (metaDocs[midDoc] == newDocs[docI][0])
-							termProduct[midDoc] += newDocs[docI][2];
-						else { // otherwise we start our new term:
-							// since midDoc will be where we want to insert
-							// our new doc, we can splice into
-							// the metaDoc at the position:
-
-							metaDocs.splice(midDoc, 0, newDocs[docI][0]);
-							termProduct.splice(midDoc, 0, newDocs[docI][2]);
-						}
-
-						// now the metaDoc will have all of the terms
-						// and termProduct will have all the weights
-					}
-				}
+				WQfindDocs(metaDocs, termProduct, qStrings);
 			}
 		}
 	}
@@ -395,80 +334,6 @@ function findQueries(skiplist_file, query_page, stopwords, doc_out) {
 
 findQueries("../project1/myIndex.dat", `./myQueries.dat`, `./myStopWords.dat`, `./myDocs.dat`);
 // console.log(queryIndexer("(spACE AND odyssey{}) OR orange", "./myStopWords.dat"));;
-
-function makeBQQuery(qString, low, high) {
-	if (low < high) {
-		let pivot = BQpartition(qString, low, high);
-		if (pivot < low)
-			return;
-
-		// since pivot could have AND or OR at its position, we need to know because
-		// we only want to splice in () if it's an or
-		if (qString[pivot] == "OR") {
-
-			// if pivot is a value, we want to put parentheses on both sides, aka:
-			// go from ["banana", "OR", "apple"] to
-			// ["(", "banana", ")", "OR", "(", "apple", ")"]
-
-			// BUT there is some times when we don't want to add on one side, say:
-			// ["apple", "OR", "(", "tree", "AND", "plant", "("]
-			// since the parentheses are already there, we don't want to add extras:
-
-			let lower = 0,
-				higher = 0;
-			if (!(qString[pivot + 1] == "(" && qString[high] == ")")) {
-				qString.splice(high + 1, 0, ")"); // high side
-				qString.splice(pivot + 1, 0, "("); // high side
-
-				higher = 2;
-			}
-
-			if (!(qString[pivot - 1] == ")" && qString[low] == "(")) {
-				qString.splice(pivot, 0, ")"); // low side
-				qString.splice(low, 0, "("); // low side
-
-				lower = 2;
-			}
-
-			high += lower + higher;
-			pivot += lower;
-		}
-
-		makeBQQuery(qString, pivot + 1, high); // high side
-		makeBQQuery(qString, low, pivot - 1); // low side
-	}
-	return qString;
-}
-
-function BQpartition(qString, low, pivot) {
-	// a partition point would be either an OR, or it would be on the right side of
-	// a ")" or on the left side of an "("
-	let close = 0;
-	let lowest = [low - 1, Infinity];
-	// lowest contains a position and a close level, which corresponds
-	// to what level of "depth" we have of parentheses, the lowest the
-	// close value the higher likelihood hood of being chosen
-
-	for (let j = low; j < pivot; j++) {
-		if (qString[j] == "(")
-			close++;
-		else if (qString[j] == ")")
-			close--;
-
-		if ((qString[j] == "OR" || qString[j] == "AND") && close < lowest[1]) {
-			lowest = [j, close];
-		}
-	}
-
-	return lowest[0];
-}
-
-function normalChar(char) {
-	if (!char)
-		return;
-	char = char.charCodeAt(0);
-	return (char >= 48 && char <= 57) || (char >= 65 && char <= 90) || (char >= 97 && char <= 122);
-}
 
 function cleanQuery(string, stopwords, query_type) {
 	let pre = 0;
