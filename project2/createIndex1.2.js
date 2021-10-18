@@ -180,12 +180,14 @@ function findPages(string, stopwords, writer) {
 	return;
 }
 
-function createIndex(coll_endpoint, stopwords, outputer) {
+function createIndex(coll_endpoint, stopwords, outputer, indexFile) {
 
 	console.time();
 	let source = fs.createReadStream(coll_endpoint, {
 		highWaterMark: 131071
 	});
+
+	fs.truncateSync(indexFile, 0);
 
 	fs.truncateSync(outputer, 0);
 
@@ -210,8 +212,7 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 			findPages(chunk.toString(), stopwords, writerTitleIndex);
 
 			// serialize our new chunk of data:
-			serializeObject(`../project1/myIndex.dat`, pages, pageAmount);
-			
+			serializeObject(indexFile, pages, pageAmount);
 		}
 	});
 
@@ -222,4 +223,4 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 }
 
 let stop_words = fs.readFileSync(`./myStopWords.dat`, 'utf8').split("\n");
-createIndex('../project1/myCollection.dat', stop_words, './myTitles.dat');
+createIndex('../project1/myCollection.dat', stop_words, './myTitles.dat', `../project1/myIndex.dat`);
