@@ -208,14 +208,15 @@ function createIndex(coll_endpoint, stopwords, outputer) {
 
 		while (null !== (chunk = source.read())) {
 			findPages(chunk.toString(), stopwords, writerTitleIndex);
+
+			// serialize our new chunk of data:
+			serializeObject(`../project1/myIndex.dat`, pages, pageAmount);
+			
 		}
 	});
 
 	source.on('end', () => {
 		console.log("end");
-		// serialize pages into the inverted index:
-		console.log(pageAmount, pages);
-		serializeObject(`../project1/myIndex.dat`, pages, pageAmount);
 		console.timeEnd();
 	});
 }

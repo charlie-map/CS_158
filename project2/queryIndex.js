@@ -131,7 +131,8 @@ function WPQfindDocs(metaDocs, termProduct, qStrings, end) {
 			noCurry = false;
 		}
 
-		// recursion done
+		// recursion done, and we reinstate the old value of qStrings:
+		// the only place qStrings changes will be in deeper recursive calls
 		qStrings[i] = postPermString;
 	}
 

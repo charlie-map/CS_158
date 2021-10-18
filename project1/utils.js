@@ -97,77 +97,198 @@ function partition(array, low, pivot) {
 	return lowest;
 }
 
-function roughSizeOfObject(object) {
+function quickDe(textPath, currObj) {
+	let prevObject = {};
+	let wordCount = 0;
 
-	var objectList = [];
-	var stack = [object];
-	var bytes = 0;
+	return new Promise((resolve, reject) => {
 
-	while (stack.length) {
-		var value = stack.pop();
+		// we start by going through our
+		// inputted textfil chunk by chunk:
 
-		if (typeof value === 'boolean') {
-			bytes += 4;
-		} else if (typeof value === 'string') {
-			bytes += value.length * 2;
-		} else if (typeof value === 'number') {
-			bytes += 8;
-		} else if (
-			typeof value === 'object' &&
-			objectList.indexOf(value) === -1
-		) {
-			objectList.push(value);
+		let source = fs.createReadStream(textPath, {
+			highWaterMark: 131071
+		});
 
-			for (var i in value) {
-				stack.push(value[i]);
+		source.on("readable", () => {
+			let chunk;
+
+			while (null !== (chunk = source.read())) {
+				chunk = chunk.toString();
+
+				let buildInputs = [0, []];
+				let word, wordTally;
+				let docLoc = 0;
+				let strEnder;
+				let currLen;
+
+				// when we get our chunk we initialize going through:
+				for (let runChu = chunk.indexOf("\n") + 1; runChu < chunk.length; runChu++) {
+
+					// first get the beginning word:
+					if (!word) {
+						strEnder = chunk.indexOf("|", runChu)
+
+						word = chunk.substring(runChu, strEnder);
+
+						currLen = currObj[word];
+
+						prevObject[word] = currLen ? currLen : [];
+
+						currLen = currLen.length;
+						delete currObj[word];
+
+						runChu = ++strEnder;
+					}
+
+					// wait to find docID:
+					if (chunk[runChu] == ":") {
+
+						// strEnder is going to be at
+						// one + "|", so we can substring the two:
+						buildInputs[0] = parseInt(chunk.substring(strEnder, runChu));
+
+						strEnder = ++runChu;
+					}
+
+					if (chunk[runChu] + chunk[runChu + 1] == "🌈") {
+
+						// one + "🌈" mean we need to add 2 after
+						buildInputs[3] = parseInt(chunk.substring(strEnder, runChu));
+
+						strEnder = runChu + 2;
+					}
+
+					// we want to skip this (since we can
+					// calculate it with the position array)
+					if (chunk[runChu] + chunk[runChu + 1] == "😊" || chunk[runChu] + chunk[runChu + 1] == "💩") {
+
+						strEnder = runChu + 2;
+						continue;
+					}
+
+					// the final step is looking at positions:
+					// which are separated by commas:
+					if (chunk[runChu] == ",") {
+
+						buildInputs[1].push(parseInt(chunk.substring(strEnder, runChu)));
+
+						strEnder = ++runChu;
+					}
+
+					// when we hit the end of this docID, we
+					// need to reset:
+					if (chunk[runChu] == ";") {
+
+						// need to add positions into our
+						// running pages:
+						buildInputs[2] = buildInputs[1].length;
+						searchFindInsert(prevObject[word], buildInputs, 0, currLen);
+
+						strEnder = ++runChu;
+						currLen++;
+					}
+
+					if (chunk[runChu] == "\n") {
+
+						// reset everything
+						buildInputs = [0, []];
+						wordCount++;
+						word = "";
+					}
+				}
+
+				strEnder = 0;
 			}
-		}
-	}
-	return bytes;
+		});
+
+		source.on("end", () => {
+
+			resolve([wordCount, prevObject]);
+		});
+	});
 }
 
 const A = 0.4;
 
-function serializeObject(textfile, object, pageAmount) {
+function searchFindInsert(mainObj, insertArr, left, right) {
+	left = left ? left : 0;
+	right = right != undefined ? right : mainObj.length;
+
+	if (left == right || right < 0) {
+		// we splice in new value wherever we are:
+
+		mainObj.splice(left, 0, insertArr);
+
+		return;
+	}
+
+	// first look for the position it goes in:
+	let mid = Math.floor((left + right) * 0.5);
+	console.log("\n", mainObj, insertArr, left, mid, right);
+
+	if (mainObj[mid][0] == insertArr[0]) {
+		// we want to insert here, which means
+		// altering some values and combining
+		// the positions:
+
+		mainObj[mid][1] = [...mainObj[mid][1], ...insertArr[1]];
+		mainObj[mid][2] = mainObj[mid][1].length
+		mainObj[mid].push(insertArr);
+
+		return;
+	}
+
+	// otherwise we search a subpath:
+	if (mainObj[mid][0] > insertArr[0])
+		searchFindInsert(mainObj, insertArr, left, mid - 1);
+	else
+		searchFindInsert(mainObj, insertArr, mid + 1, right);
+
+	return;
+}
+
+async function serializeObject(textfile, object, pageAmount) {
+
+	// first grab the object and deserialize whatever is currently
+	// in there:
+	let prevObject = await quickDe(textfile, object);
+	let wordCount = prevObject[0];
+	prevObject = prevObject[1];
+
+	fs.truncate(textfile, () => {
+		console.log("truncated");
+	});
+
 	let writer = fs.createWriteStream(textfile, {
 		highWaterMark: 65535
 	});
 
-	if (pageAmount) {
-		writer.write(`💦${pageAmount}💦\n`);
-	}
+	writer.write(`💦${pageAmount}💦\n`);
 
 	let objectKeys = Object.keys(object),
-		string, sub_object, obKey = 0;
+		string = "", sub_object, obKey = 0;
 
 	while (obKey < objectKeys.length) {
+
+		// while we're going through, we're adding them
+		// to our full object:
+
 		string = `${objectKeys[obKey]}|`;
 
 		sub_object = object[objectKeys[obKey]];
-		quicksort(sub_object, 0, sub_object.length - 1);
-		console.log(objectKeys[obKey], sub_object);
-		if (pageAmount) {
-			// make document frequency
-			let df = sub_object.length;
 
-			for (let grabDocs = 0; grabDocs < df; grabDocs++) {
-				let grabSub = sub_object[grabDocs];
-				if (!grabSub[0] || !grabSub[1] || !grabSub[2] || !grabSub[3])
-					continue;
+		for (let eachDoc = 0; eachDoc < sub_object.length; eachDoc++) {
 
-				string += `${grabSub[0]}:${grabSub[2]}😊${grabSub[3]}🌈${df}💩${grabSub[1]},;`;
-			}
-		} else {
-			for (let grabDocs = 0; grabDocs < sub_object.length; grabDocs++) {
-				string += sub_object[grabDocs][0] + ":" + sub_object[grabDocs][1] + ",;";
-			}
+			string += `${sub_object[eachDoc][0]}:${sub_object[eachDoc][1].length}😊${sub_object[eachDoc][3]}🌈${sub_object.length}💩${sub_object[eachDoc][1]},;`;
 		}
 
-		string += "\n";
-		writer.write(string);
+		writer.write(string + "\n");
 
 		obKey++;
-	};
+	}
+
+	//writer.write("12|11:1😊4🌈4💩180,;\n");
 
 	if (obKey < objectKeys.length) {
 		// Had to stop early!
@@ -208,7 +329,7 @@ function deserializeObject(input_file, half_doneOBJ, pageAmount, insert, trie, d
 
 		if (doc_id != undefined)
 			docFrequency[doc_id] = input_file[find_str] == ";" || input_file[find_str] == "\n" ?
-				Math.pow(docFrequency[doc_id], 2) : docFrequency[doc_id];
+			Math.pow(docFrequency[doc_id], 2) : docFrequency[doc_id];
 		doc_id = input_file[find_str] == ";" || input_file[find_str] == "\n" ? undefined : doc_id;
 		tf = input_file[find_str] == ";" ? undefined : tf;
 		totalWords = input_file[find_str] == ";" ? undefined : totalWords;
