@@ -34,9 +34,6 @@ function tempPageClear() {
 
 		// otherwise, we need to find where we place the word
 		// inside of the words object, which is a little bit more trick
-		// if (wordTemp[tempWords[wordRun]][0] == 41250) {
-		// 	console.log("searching", tempWords[wordRun], wordTemp[tempWords[wordRun]]);
-		// }
 		searchFindInsert(subWords, wordTemp[tempWords[wordRun]], 0, subWords.length);
 	}
 
@@ -206,7 +203,7 @@ function createIndex(coll_endpoint, stopwords, outputer, indexFile) {
 			findPages(chunk.toString(), stopwords, writerTitleIndex);
 
 
-			console.log(wordObject);
+			///console.log(wordObject, wordTemp);
 
 			// serialize our new chunk of data:
 			serializeObject(indexFile, wordObject, pageAmount);

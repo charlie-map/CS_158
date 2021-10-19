@@ -132,10 +132,10 @@ function quickDe(textPath, currObj) {
 						word = chunk.substring(runChu, strEnder);
 
 						currLen = currObj[word];
-
+						
 						prevObject[word] = currLen ? currLen : [];
 
-						currLen = currLen.length;
+						currLen = currLen ? currLen.length : 0;
 						delete currObj[word];
 
 						runChu = ++strEnder;
@@ -183,10 +183,11 @@ function quickDe(textPath, currObj) {
 						// need to add positions into our
 						// running pages:
 						buildInputs[2] = buildInputs[1].length;
-						searchFindInsert(prevObject[word], buildInputs, 0, currLen);
 
+						searchFindInsert(prevObject[word], buildInputs, 0, currLen, word=="2011");
+						
 						strEnder = ++runChu;
-						currLen++;
+						currLen = prevObject[word].length;
 					}
 
 					if (chunk[runChu] == "\n") {
@@ -211,13 +212,12 @@ function quickDe(textPath, currObj) {
 
 const A = 0.4;
 
-function searchFindInsert(mainObj, insertArr, left, right) {
+function searchFindInsert(mainObj, insertArr, left, right, isTrue) {
 	left = left ? left : 0;
 	right = right != undefined ? right : mainObj.length;
 
 	if (left == right || right < 0) {
 		// we splice in new value wherever we are:
-
 		mainObj.splice(left, 0, insertArr);
 
 		return;
@@ -225,7 +225,6 @@ function searchFindInsert(mainObj, insertArr, left, right) {
 
 	// first look for the position it goes in:
 	let mid = Math.floor((left + right) * 0.5);
-	console.log("\n", mainObj, insertArr, left, mid, right);
 
 	if (mainObj[mid][0] == insertArr[0]) {
 		// we want to insert here, which means
@@ -234,7 +233,7 @@ function searchFindInsert(mainObj, insertArr, left, right) {
 
 		mainObj[mid][1] = [...mainObj[mid][1], ...insertArr[1]];
 		mainObj[mid][2] = mainObj[mid][1].length
-		mainObj[mid].push(insertArr);
+		//mainObj[mid].push(insertArr); // WHAT??
 
 		return;
 	}
@@ -248,26 +247,9 @@ function searchFindInsert(mainObj, insertArr, left, right) {
 	return;
 }
 
-async function serializeObject(textfile, object, pageAmount) {
-
-	// first grab the object and deserialize whatever is currently
-	// in there:
-	let prevObject = await quickDe(textfile, object);
-	let wordCount = prevObject[0];
-	prevObject = prevObject[1];
-
-	fs.truncate(textfile, () => {
-		console.log("truncated");
-	});
-
-	let writer = fs.createWriteStream(textfile, {
-		highWaterMark: 65535
-	});
-
-	writer.write(`💦${pageAmount}💦\n`);
-
-	let objectKeys = Object.keys(object),
-		string = "", sub_object, obKey = 0;
+function writeTo(object, objectKeys, writer) {
+	let sub_object, string = "",
+		obKey = 0;
 
 	while (obKey < objectKeys.length) {
 
@@ -288,13 +270,43 @@ async function serializeObject(textfile, object, pageAmount) {
 		obKey++;
 	}
 
-	//writer.write("12|11:1😊4🌈4💩180,;\n");
+	return;
+}
 
-	if (obKey < objectKeys.length) {
+async function serializeObject(textfile, object, pageAmount) {
+
+	// first grab the object and deserialize whatever is currently
+	// in there:
+	let prevObject = await quickDe(textfile, object);
+	let wordCount = prevObject[0];
+	prevObject = prevObject[1];
+
+	fs.truncateSync(textfile);
+
+	let writer = fs.createWriteStream(textfile, {
+		highWaterMark: 65535
+	});
+
+	writer.write(`💦${pageAmount}💦\n`);
+
+	let prevKeys = Object.keys(prevObject),
+		currKeys = Object.keys(object);
+
+	// first write in previous object into the file
+	let prevStream = writeTo(prevObject, prevKeys, writer);
+
+	// then write in the new words
+	let currStream = writeTo(object, currKeys, writer);
+
+	if (prevStream < prevKeys.length || currStream < currKeys.length) {
 		// Had to stop early!
 
-		writer.once('drain', serializeObject);
+		writer.once('drain', function() {
+			serializeObject(textfile, object, pageAmount);
+		});
 	}
+
+	return;
 }
 
 /*
@@ -413,5 +425,6 @@ module.exports = {
 	arrAndGate,
 	arrOrGate,
 	serializeObject,
-	deserializeObject
+	deserializeObject,
+	searchFindInsert
 }
