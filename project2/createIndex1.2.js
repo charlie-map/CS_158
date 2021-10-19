@@ -1,18 +1,48 @@
 const fs = require('fs');
 const stemmer = require('porter-stemmer').stemmer;
 const {
-	serializeObject
+	serializeObject,
+	searchFindInsert
 } = require('../project1/utils');
 
-let pages = Object.create(null),
+let wordObject = Object.create(null),
 	open_tag = null,
 	buffer = null,
 	buffer_place, page_id = "",
 	page_idDone = false,
 	page_title = "",
 	pageAmount = 0,
-	totalWords = 0,
-	pageTemp = Object.create(null); // stores term weight for document
+	wordTemp = Object.create(null); // stores term weight for document
+
+function tempPageClear() {
+	// let's go through page temp and use the term frequencies
+	// we've found, and the total words to add a
+	// normalized term to our terms
+	let tempWords = Object.keys(wordTemp);
+	for (let wordRun = 0; wordRun < tempWords.length; wordRun++) {
+
+		wordTemp[tempWords[wordRun]][3] = tempWords.length;
+
+		let subWords = wordObject[tempWords[wordRun]];
+		if (!wordObject[tempWords[wordRun]]) {
+
+			// this means this word hasn't been seen yet (in this chunk)
+			// so we can just make the simple switch:
+			wordObject[tempWords[wordRun]] = [wordTemp[tempWords[wordRun]]];
+			continue;
+		}
+
+		// otherwise, we need to find where we place the word
+		// inside of the words object, which is a little bit more trick
+		// if (wordTemp[tempWords[wordRun]][0] == 41250) {
+		// 	console.log("searching", tempWords[wordRun], wordTemp[tempWords[wordRun]]);
+		// }
+		searchFindInsert(subWords, wordTemp[tempWords[wordRun]], 0, subWords.length);
+	}
+
+	// done!
+	wordTemp = Object.create(null);
+}
 
 function findPages(string, stopwords, writer) {
 	stopwords.forEach(stop => {
@@ -32,28 +62,8 @@ function findPages(string, stopwords, writer) {
 
 					// we can also go ahead and augment our pages to have extra values:
 					// but only if we're closing a page tag:
-					if (string[i + 2] == "p" && string[i + 3] == "a" && string[i + 4] == "g" && string[i + 5]) {
-						// let's go through page temp and use the term frequencies
-						// we've found, and the total words to add a
-						// normalized term to our terms
-						let tempWords = Object.keys(pageTemp);
-						for (let wordRun = 0; wordRun < tempWords.length; wordRun++) {
-
-							// we need to look for the correct page_id:
-							// at pageTemp[tempWords[wordRun]][1]:
-
-							// POS 2 in pages is the term frequency
-							pages[tempWords[wordRun]][pageTemp[tempWords[wordRun]][1]][2] = pageTemp[tempWords[wordRun]][0];
-
-							// POS 3 is the total words in our page
-							pages[tempWords[wordRun]][pageTemp[tempWords[wordRun]][1]][3] = totalWords;
-							// ^ grab totalWords
-							// which can be save as tempWords.length
-						}
-
-						// done!
-						pageTemp = Object.create(null);
-					}
+					if (string[i + 2] == "p" && string[i + 3] == "a" && string[i + 4] == "g" && string[i + 5] == "e")
+						tempPageClear();
 
 					// make sure that string.indexOf() is not negative
 					// if the string.indexOf() is negative, we need to actually
@@ -75,40 +85,25 @@ function findPages(string, stopwords, writer) {
 				if ((string[i] == " " || string[i] == "\n" || string[i] == "\t" ||
 						string[i] == "<") && buffer == "text" && word.length) {
 					if (word.length < 25) {
-						let stem_word = word, //stemmer(word), stemming during querying
-							stem_page = pages[stem_word];
+
+						let stem_word = stemmer(word), // stemming during querying
+							stem_page = wordTemp[stem_word];
+
 						page_id = parseInt(page_id, 10);
 						if (!stem_page) {
-							pages[stem_word] = [
-								[page_id, [i]]
-							];
-							pageTemp[stem_word] = [1, 0];
+							// adding to our current word object:
+							// pos 2 = tf
+							// pos 3 = df
+							wordTemp[stem_word] = [
+								page_id, [i], 1, null
+							]
+
 						} else {
 
-							let added = false,
-								less_than = 0;
-							for (let find = 0; find < stem_page.length; find++) {
-								if (stem_page[find][0] == page_id) {
-									pages[stem_word][find][1].push(i);
-
-									// also add to the term frequency:
-									pageTemp[stem_word][0]++;
-									added = true;
-								} else if (stem_page[find][0] < page_id)
-									less_than = find;
-							}
-
-							if (!added) {
-								pages[stem_word][stem_page.length] = [
-									page_id, [i]
-								];
-								pageTemp[stem_word] = [1, stem_page.length - 1];
-								// the second argument is the position of our page_id
-								// in pages
-							}
+							stem_page[1].push(i);
+							wordTemp[stem_word][2]++;
 						}
 					}
-					totalWords++;
 					word = "";
 				} else {
 					word += (string[i].charCodeAt(0) >= 97 && string[i].charCodeAt(0) <= 122) ||
@@ -149,7 +144,6 @@ function findPages(string, stopwords, writer) {
 					page_idDone = false;
 					page_title = "";
 					buffer = null;
-					totalWords = 0;
 				} else if (buffer == "id" || buffer == "title" || buffer == "text") {
 					// change nothing
 				} else {
@@ -211,16 +205,21 @@ function createIndex(coll_endpoint, stopwords, outputer, indexFile) {
 		while (null !== (chunk = source.read())) {
 			findPages(chunk.toString(), stopwords, writerTitleIndex);
 
+
+			console.log(wordObject);
+
 			// serialize our new chunk of data:
-			serializeObject(indexFile, pages, pageAmount);
+			serializeObject(indexFile, wordObject, pageAmount);
+			// then empty the pages object:
+			wordObject = Object.create(null);
 		}
 	});
 
 	source.on('end', () => {
-		console.log("end");
 		console.timeEnd();
 	});
 }
 
 let stop_words = fs.readFileSync(`./myStopWords.dat`, 'utf8').split("\n");
-createIndex('../project1/myCollection.dat', stop_words, './myTitles.dat', `../project1/myIndex.dat`);
+//createIndex('../project1/myCollection.dat', stop_words, './myTitles.dat', `../project1/myIndex.dat`);
+createIndex('/media/hotboy/162ae38b-fd40-443b-9963-6fc10196d6ff/wiki325', stop_words, './myTitles.dat', `/media/hotboy/162ae38b-fd40-443b-9963-6fc10196d6ff/myIndex.dat`);
