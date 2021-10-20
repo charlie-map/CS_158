@@ -97,8 +97,7 @@ function partition(array, low, pivot) {
 	return lowest;
 }
 
-function quickDe(textPath, currObj) {
-	let prevObject = {};
+function quickDe(textPath, currObj, prevObject) {
 	let wordCount = 0;
 
 	return new Promise((resolve, reject) => {
@@ -109,6 +108,8 @@ function quickDe(textPath, currObj) {
 		let source = fs.createReadStream(textPath, {
 			highWaterMark: 131071
 		});
+
+		let isRead = false;
 
 		source.on("readable", () => {
 			let chunk;
@@ -132,7 +133,7 @@ function quickDe(textPath, currObj) {
 						word = chunk.substring(runChu, strEnder);
 
 						currLen = currObj[word];
-						
+
 						prevObject[word] = currLen ? currLen : [];
 
 						currLen = currLen ? currLen.length : 0;
@@ -184,8 +185,8 @@ function quickDe(textPath, currObj) {
 						// running pages:
 						buildInputs[2] = buildInputs[1].length;
 
-						searchFindInsert(prevObject[word], buildInputs, 0, currLen, word=="2011");
-						
+						searchFindInsert(prevObject[word], buildInputs, 0, currLen, word == "2011");
+
 						strEnder = ++runChu;
 						currLen = prevObject[word].length;
 					}
@@ -199,13 +200,15 @@ function quickDe(textPath, currObj) {
 					}
 				}
 
+				console.log("finished");
+				isRead = true;
 				strEnder = 0;
 			}
 		});
 
 		source.on("end", () => {
 
-			resolve([wordCount, prevObject]);
+			resolve(wordCount);
 		});
 	});
 }
@@ -270,43 +273,52 @@ function writeTo(object, objectKeys, writer) {
 		obKey++;
 	}
 
-	return;
+	return obKey;
 }
 
 async function serializeObject(textfile, object, pageAmount) {
 
 	// first grab the object and deserialize whatever is currently
 	// in there:
-	let prevObject = await quickDe(textfile, object);
-	let wordCount = prevObject[0];
-	prevObject = prevObject[1];
-
+	let prevObject = {};
+	let wordCount = await quickDe(textfile, object, prevObject);
+	
+	console.log("made obejct", pageAmount);
 	fs.truncateSync(textfile);
 
-	let writer = fs.createWriteStream(textfile, {
-		highWaterMark: 65535
-	});
-
-	writer.write(`💦${pageAmount}💦\n`);
-
-	let prevKeys = Object.keys(prevObject),
-		currKeys = Object.keys(object);
-
-	// first write in previous object into the file
-	let prevStream = writeTo(prevObject, prevKeys, writer);
-
-	// then write in the new words
-	let currStream = writeTo(object, currKeys, writer);
-
-	if (prevStream < prevKeys.length || currStream < currKeys.length) {
-		// Had to stop early!
-
-		writer.once('drain', function() {
-			serializeObject(textfile, object, pageAmount);
+	return new Promise((resolve, reject) => {
+		let writer = fs.createWriteStream(textfile, {
+			highWaterMark: 65535
 		});
-	}
 
-	return;
+		writer.write(`💦${pageAmount}💦\n`);
+
+		let prevKeys = Object.keys(prevObject),
+			currKeys = Object.keys(object);
+
+		// first write in previous object into the file
+		let prevStream = writeTo(prevObject, prevKeys, writer);
+
+		// then write in the new words
+		let currStream = writeTo(object, currKeys, writer);
+
+		if (prevStream < prevKeys.length || currStream < currKeys.length) {
+			// Had to stop early!
+
+			writer.once('drain', function() {
+				prevObject = null;
+				writer.destroy();
+
+				serializeObject(textfile, object, pageAmount);
+			});
+		}
+
+		// try and remove any possible memory leakage:
+		prevObject = null;
+		writer.destroy();
+		// done
+		resolve();
+	});
 }
 
 /*
