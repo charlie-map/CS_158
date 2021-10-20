@@ -282,7 +282,7 @@ async function serializeObject(textfile, object, pageAmount) {
 	// in there:
 	let prevObject = {};
 	let wordCount = await quickDe(textfile, object, prevObject);
-	
+
 	console.log("made obejct", pageAmount);
 	fs.truncateSync(textfile);
 
@@ -313,11 +313,13 @@ async function serializeObject(textfile, object, pageAmount) {
 			});
 		}
 
-		// try and remove any possible memory leakage:
-		prevObject = null;
-		writer.destroy();
-		// done
-		resolve();
+		writer.on("finish", () => {
+			// try and remove any possible memory leakage:
+			prevObject = null;
+			writer.destroy();
+			// done
+			resolve();
+		});
 	});
 }
 
