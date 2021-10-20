@@ -202,9 +202,6 @@ function createIndex(coll_endpoint, stopwords, outputer, indexFile) {
 		while (null !== (chunk = source.read())) {
 			findPages(chunk.toString(), stopwords, writerTitleIndex);
 
-
-			///console.log(wordObject, wordTemp);
-
 			// serialize our new chunk of data:
 			serializeObject(indexFile, wordObject, pageAmount);
 			// then empty the pages object:
