@@ -96,15 +96,11 @@ function clean(string, writeOut) {
 							continue;
 				}
 
-				if (endInnerTag == "text") { // need extra cleaning
-
-				}
-
 				// now we can actually add whatever innards is into our file:
 				outStream.write("<" + endInnerTag + ">" + (endInnerTag == "text" ? "\n" : "") + innards + (endInnerTag == "text" ? "\n" : "") + (tagType ? "</" + endInnerTag + ">\n" : "\n"));
 			}
 
-			if (string[i] == "{") { // remove this: all linkage to stuff in wikipedia language
+			if (buffer == "text" && string[i] == "{") { // remove this: all linkage to stuff in wikipedia language
 				let newIndex = string.indexOf("}", i);
 
 				if (newIndex == -1)
@@ -113,7 +109,7 @@ function clean(string, writeOut) {
 				i = newIndex + 2;
 			}
 
-			if (string[i] == " ") {
+			if (string[i] == " " && buffer == "text") {
 				// check the current subWord and make sure it's clean
 				subWord = isDirty(subWord);
 				if (subWord.length == 0) {
@@ -124,7 +120,10 @@ function clean(string, writeOut) {
 					subWord = "";
 				}
 			} else {
-				subWord += string[i];
+				if (buffer == "text")
+					subWord += string[i];
+				else
+					innards += string[i];
 			}
 		}
 	}
