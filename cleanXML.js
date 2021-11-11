@@ -10,6 +10,19 @@ function isGoodTag(tag) {
 	return false;
 }
 
+function isDirty(str) {
+
+	let index = str.indexOf("&");
+	str = str.substring(0, index == -1 ? str.length : index).replace(/[^A-Za-z0-9'",.|]/g, "");
+
+	str = str.split("|").join(" ");
+
+	if (str.length >= 20)
+		return "";
+
+	return str;
+}
+
 function clean(string, writeOut) {
 	// clear and setup write stream for cleaned file
 	fs.truncateSync(writeOut, 0);
@@ -21,6 +34,8 @@ function clean(string, writeOut) {
 	let hasTag = 0;
 	let buffer = 0;
 	let innards = "";
+
+	let subWord = "";
 
 	for (let i = 0; i < string.length; i++) {
 
@@ -56,6 +71,7 @@ function clean(string, writeOut) {
 				}
 
 				i = tagEnd;
+				subWord = "";
 				innards = "";
 				continue;
 			}
@@ -79,11 +95,37 @@ function clean(string, writeOut) {
 					if (hasTag > 1)
 							continue;
 				}
+
+				if (endInnerTag == "text") { // need extra cleaning
+
+				}
+
 				// now we can actually add whatever innards is into our file:
 				outStream.write("<" + endInnerTag + ">" + (endInnerTag == "text" ? "\n" : "") + innards + (endInnerTag == "text" ? "\n" : "") + (tagType ? "</" + endInnerTag + ">\n" : "\n"));
 			}
 
-			innards += string[i];
+			if (string[i] == "{") { // remove this: all linkage to stuff in wikipedia language
+				let newIndex = string.indexOf("}", i);
+
+				if (newIndex == -1)
+					continue;
+
+				i = newIndex + 2;
+			}
+
+			if (string[i] == " ") {
+				// check the current subWord and make sure it's clean
+				subWord = isDirty(subWord);
+				if (subWord.length == 0) {
+					continue;
+				} else {
+					// go ahead and add it
+					innards += subWord + " ";
+					subWord = "";
+				}
+			} else {
+				subWord += string[i];
+			}
 		}
 	}
 }
@@ -95,7 +137,9 @@ let tagType = process.argv[4] == "-open" ? 0 : 1;
 // process.argv:
 // 2 for the XML file
 // 3 for the cleaned XML output file
+console.time();
 clean(fs.readFileSync(process.argv[2]).toString(), process.argv[3]);
+console.timeEnd();
 
 
 
